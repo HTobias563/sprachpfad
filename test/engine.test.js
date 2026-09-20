@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { setSeed, norm, todayStr, addDays } from '../src/core/text.js';
 import { PROFILES } from '../src/lang/registry.js';
 import { registry } from '../src/exercises/index.js';
-import { buildForLesson, buildReviewSession, buildDrill, buildWelcomeBack, makeCtx } from '../src/core/builders.js';
+import { buildForLesson, buildReviewSession, buildDrill, buildWelcomeBack, buildQuickRound, buildListenOnly, makeCtx } from '../src/core/builders.js';
 import { reconcileLessons } from '../src/core/progress.js';
 import { createSession, current, record, advance, finish, abandon, snapshot, restore, progressPct } from '../src/core/session.js';
 import { defaultState, emptyLang } from '../src/core/migrations.js';
@@ -90,7 +90,7 @@ function play(def, state, ls, answerFn) {
     if (!d.card) { const res = answerFn(ex, s); if (res) record(s, ex, res, ctx); }
     if (advance(s) === 'finished') break;
   }
-  return { s, done: finish(s, state, ls, today) };
+  return { s, done: finish(s, state, ls, today, p) };
 }
 test('Session komplett richtig: Fortschritt, XP, Log', () => {
   const state = defaultState(); const ls = emptyLang(); state.langs.vi = ls;
@@ -124,7 +124,7 @@ test('Abbruch bewertet beantwortete Wörter, gibt keine XP', () => {
   abandon(s, state, ls, today);
   assert.equal(state.pending, null);
   assert.ok(Object.keys(ls.items).length >= 1);
-  assert.equal(state.days[today], undefined);
+  assert.ok(!state.days[today] || state.days[today].xp <= 6, 'höchstens 6 XP bei Abbruch');
 });
 test('Snapshot und Wiederherstellung', () => {
   const ls = emptyLang();
@@ -184,4 +184,28 @@ test('Lektions-Flags werden mit neuer Datenversion abgeglichen', () => {
   assert.ok(ls.lessons.u1l0 && ls.lessons.u1l0.done, 'Ton-Lektion über Plugin');
   assert.equal(ls.dataVersion, p.data.version);
   assert.equal(reconcileLessons(p, ls), false, 'idempotent');
+});
+
+test('Meilensteine: erste Lektion und Einheit fertig', () => {
+  const state = defaultState(); const ls = emptyLang(); state.langs.vi = ls;
+  const unit = p.data.units[0];
+  let done;
+  unit.lessons.forEach(l => { const def = buildForLesson(p, ls, l, { today }); ({ done } = play(def, state, ls, ex => ex.type === 'speak' ? null : { correct: true })); });
+  assert.ok(done.milestones.some(m => m.title.includes('Einheit')), JSON.stringify(done.milestones));
+  assert.ok(done.milestones.some(m => m.text.includes('grüßen')));
+  assert.equal(typeof done.due, 'number');
+});
+test('Abbruch: Teil-Gutschrift', () => {
+  const state = defaultState(); const ls = emptyLang(); state.langs.vi = ls;
+  const def = buildForLesson(p, ls, p.lessonById('u2l2'), { today });
+  const s = createSession(def, 'vi'); const ctx = makeCtx(p, ls);
+  for (let i = 0; i < 12; i++) { const ex = current(s); if (!registry[ex.type].card) record(s, ex, { correct: true }, ctx); advance(s); }
+  const xp = abandon(s, state, ls, today);
+  assert.ok(xp >= 1 && xp <= 6, 'xp ' + xp); assert.equal(state.days[today].xp, xp);
+});
+test('Schnellrunde und Nur hören', () => {
+  const ls = emptyLang();
+  p.allItems.slice(0, 10).forEach(it => gradeItem(ls, it.id, false, '2026-09-01'));
+  const q = buildQuickRound(p, ls, { today }); assert.equal(q.exercises.length, 6); q.exercises.forEach(ex => checkContract(ex, 'quick'));
+  const l = buildListenOnly(p, ls, {}); assert.equal(l.exercises.length, 8); assert.ok(l.exercises.every(ex => ex.type === 'choose' && ex.dir === 'listen'));
 });

@@ -1,7 +1,7 @@
 // Session-Engine: Warteschlange, Bewertung, Wiederholung falscher Antworten, Abschluss, Snapshot
 import { registry } from '../exercises/index.js';
 import { gradeItem } from './srs.js';
-import { addXp, streak, todayXp } from './progress.js';
+import { addXp, streak, todayXp, countLearned, dueItems } from './progress.js';
 import { todayStr } from './text.js';
 
 export function createSession(def, langCode) {
@@ -40,9 +40,10 @@ export function advance(s) { s.ui = {}; s.idx++; return s.idx >= s.queue.length 
 export function applyResults(s, ls, today) {
   Object.entries(s.results).forEach(([id, r]) => gradeItem(ls, id, r.wrong > 0, today));
 }
-export function finish(s, state, ls, today) {
+export function finish(s, state, ls, today, profile) {
   today = today || todayStr();
   const d = s.def;
+  const before = { learned: countLearned(ls), streak: streak(state, today), lessons: Object.values(ls.lessons).filter(l => l.done).length };
   applyResults(s, ls, today);
   if (d.lessonId) {
     const L = ls.lessons[d.lessonId] || { count: 0, best: null };
@@ -59,10 +60,35 @@ export function finish(s, state, ls, today) {
   ls.sessions.push({ d: today, k: d.kind, l: d.lessonId || null, xp, acc: s.answered ? Math.round(100 * s.correct / s.answered) : 100, n: s.answered, s: seconds });
   if (ls.sessions.length > 300) ls.sessions.splice(0, ls.sessions.length - 300);
   state.pending = null;
-  return { xp, perfect, accuracy: s.answered ? Math.round(100 * s.correct / s.answered) : 100, streak: streak(state, today), goalHit: todayXp(state) >= state.settings.goal, kind: d.kind, title: d.title, seconds };
+  const after = { learned: countLearned(ls), streak: streak(state, today) };
+  state.stats = state.stats || {};
+  state.stats.bestStreak = Math.max(state.stats.bestStreak || 0, after.streak);
+  const milestones = [];
+  if (before.lessons === 0 && d.lessonId) milestones.push({ icon: '🌱', title: 'Erste Lektion geschafft', text: 'Der Anfang ist gemacht. Morgen eine kurze Session, und die Serie läuft.' });
+  [3, 7, 14, 30, 60, 100].forEach(m => { if (after.streak >= m && before.streak < m) milestones.push({ icon: '🔥', title: `${m} Tage am Stück`, text: m >= 14 ? 'Das ist eine echte Gewohnheit.' : 'Dranbleiben zahlt sich aus.' }); });
+  [25, 50, 100, 150].forEach(m => { if (after.learned >= m && before.learned < m) milestones.push({ icon: '📚', title: `${m} Wörter gelernt`, text: 'Gelernt heißt: an zwei verschiedenen Tagen richtig abgerufen.' }); });
+  if (profile && d.lessonId) {
+    const entry = profile.lessons.find(e => e.lesson.id === d.lessonId);
+    if (entry) {
+      const unit = entry.unit;
+      const allDone = unit.lessons.every(l => ls.lessons[l.id] && ls.lessons[l.id].done);
+      const othersDone = unit.lessons.every(l => l.id === d.lessonId || (ls.lessons[l.id] && ls.lessons[l.id].done));
+      const firstTime = (ls.lessons[d.lessonId].count || 1) === 1;
+      if (allDone && othersDone && firstTime && unit.can) milestones.push({ icon: '🏁', title: `Einheit „${unit.title}“ fertig`, text: 'Du kannst jetzt: ' + unit.can.join(' · ') });
+    }
+  }
+  const due = profile ? dueItems(profile, ls, today).length : 0;
+  return { xp, perfect, accuracy: s.answered ? Math.round(100 * s.correct / s.answered) : 100, streak: after.streak, streakBefore: before.streak, goalHit: todayXp(state) >= state.settings.goal, xpBefore: todayXp(state) - xp, kind: d.kind, title: d.title, seconds, milestones, due };
 }
-// Abbruch: beantwortete Wörter werden trotzdem bewertet, XP gibt es nicht
-export function abandon(s, state, ls, today) { applyResults(s, ls, today); state.pending = null; }
+// Abbruch: beantwortete Wörter werden bewertet, ein Teil der XP wird gutgeschrieben
+export function abandon(s, state, ls, today) {
+  today = today || todayStr();
+  applyResults(s, ls, today);
+  const xp = Math.min(6, Math.floor(s.correct / 2));
+  if (xp > 0) addXp(state, s.lang, xp, today);
+  state.pending = null;
+  return xp;
+}
 export function snapshot(s) {
   return { lang: s.lang, startedAt: s.startedAt, savedAt: Date.now(), def: { kind: s.def.kind, lessonId: s.def.lessonId, plugin: s.def.plugin || null, title: s.def.title, xp: s.def.xp, noRequeue: !!s.def.noRequeue }, queue: s.queue, idx: s.idx, results: s.results, fails: s.fails, correct: s.correct, answered: s.answered, anyWrong: s.anyWrong, maxPct: s.maxPct || 0 };
 }

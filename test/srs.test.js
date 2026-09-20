@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { gradeItem, itemStatus, isDue } from '../src/core/srs.js';
-import { streak, addXp, todayXp, nextLesson } from '../src/core/progress.js';
+import { streak, streakInfo, addXp, todayXp, nextLesson, weekKey } from '../src/core/progress.js';
 import { migrate, defaultState, emptyLang, LADDER } from '../src/core/migrations.js';
 import * as store from '../src/core/store.js';
 import { PROFILES } from '../src/lang/registry.js';
@@ -31,7 +31,8 @@ test('Serie und XP', () => {
   addXp(s, 'vi', 10, addDays(T, -1)); assert.equal(streak(s), 1);
   addXp(s, 'vi', 10, T); addXp(s, 'ko', 5, addDays(T, -2)); assert.equal(streak(s), 3);
   assert.equal(todayXp(s), 10); assert.equal(s.days[T].vi, 10);
-  delete s.days[addDays(T, -1)]; assert.equal(streak(s), 1);
+  delete s.days[addDays(T, -1)]; assert.equal(streak(s), 2, 'eine Lücke wird vom Pausentag überbrückt, zählt aber nicht mit');
+  delete s.days[addDays(T, -2)]; assert.equal(streak(s), 1, 'ohne Lerntag dahinter gibt es keinen Pausentag');
 });
 test('Migration v1 → v2 aus Vorlage', () => {
   const v1 = JSON.parse(readFileSync(new URL('./fixtures/state-v1.json', import.meta.url), 'utf8'));
@@ -63,3 +64,20 @@ test('Kaputter Speicher führt zu frischem Zustand', () => {
   assert.equal(s.v, 2); assert.deepEqual(s.langs, {});
 });
 test('Zukünftige Version wird abgelehnt', () => { assert.throws(() => migrate({ v: 99 })); });
+
+test('Serie: ein Pausentag pro Woche wird überbrückt', () => {
+  const s = defaultState();
+  // Mo 14.9. bis Fr 18.9. gelernt, Sa 19.9. Pause, So 20.9. gelernt
+  ['2026-09-14', '2026-09-15', '2026-09-16', '2026-09-17', '2026-09-18', '2026-09-20'].forEach(d => addXp(s, 'vi', 10, d));
+  const info = streakInfo(s, '2026-09-20');
+  assert.equal(info.streak, 6); assert.deepEqual(info.frozen, ['2026-09-19']);
+  // zwei Lücken in derselben Woche brechen die Serie
+  const s2 = defaultState();
+  ['2026-09-14', '2026-09-15', '2026-09-18', '2026-09-20'].forEach(d => addXp(s2, 'vi', 10, d));
+  assert.equal(streak(s2, '2026-09-20'), 2);
+  // heute noch nicht gelernt, gestern Pause, davor gelernt: Serie lebt
+  const s3 = defaultState();
+  ['2026-09-17', '2026-09-18'].forEach(d => addXp(s3, 'vi', 10, d));
+  assert.equal(streak(s3, '2026-09-20'), 2);
+  assert.equal(weekKey('2026-09-20'), '2026-W38'); assert.equal(weekKey('2026-09-21'), '2026-W39');
+});

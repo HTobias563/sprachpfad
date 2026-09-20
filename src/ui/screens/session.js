@@ -7,6 +7,7 @@ import * as router from '../router.js';
 import * as tts from '../../platform/tts.js';
 import * as sr from '../../platform/sr.js';
 import * as store from '../../core/store.js';
+import { toast } from '../toast.js';
 
 function def(ex) { return registry[ex.type]; }
 function itemFeedback(it, result, ctx) {
@@ -40,10 +41,11 @@ function afterRender(ctx) {
   }
 }
 function persist(ctx) { if (!ctx.session) return; ctx.state.pending = engine.snapshot(ctx.session); store.save(); }
-export function rerender(ctx) {
+export function rerender(ctx, swap) {
   const s = ctx.session; if (!s || router.current() !== 'session') return;
   const ex = engine.current(s); const b = bottom(ex, s.ui, ctx);
-  mount($('#ex-body'), def(ex).render(ex, s.ui, ctx));
+  const body = $('#ex-body');
+  if (body) { mount(body, def(ex).render(ex, s.ui, ctx)); if (swap) { body.classList.remove('swap'); void body.offsetWidth; body.classList.add('swap'); } }
   const bot = $('#ex-bottom'); if (bot) { bot.className = 'bottom ' + b.cls; mount(bot, b.html); }
   const fill = $('#prog-fill'); if (fill) fill.style.width = engine.progressPct(s) + '%';
   afterRender(ctx);
@@ -67,19 +69,19 @@ function next(ctx) {
   abortMic(ctx); tts.stop();
   if (engine.advance(s) === 'finished') return finishFlow(ctx);
   persist(ctx);
-  window.scrollTo(0, 0);
-  rerender(ctx);
+  router.scrollTop();
+  rerender(ctx, true);
 }
 function finishFlow(ctx) {
   const s = ctx.session;
-  ctx.done = engine.finish(s, ctx.state, ctx.ls);
+  ctx.done = engine.finish(s, ctx.state, ctx.ls, undefined, ctx.lang);
   store.save();
   ctx.session = null; router.setGuard(null);
   ctx.sfx('done');
   router.go('done', { replace: true });
 }
 function askQuit(ctx) {
-  sheet.open(h`<h3>Session beenden?</h3><p>Was du bis jetzt beantwortet hast, wird gezählt. XP gibt es erst am Ende einer Session.</p><div class="stack"><button class="btn primary" data-act="stay">Weitermachen</button><button class="btn ghost" data-act="quit">Beenden</button></div>`, {
+  sheet.open(h`<h3>Session beenden?</h3><p>Bis hier ist gespeichert. Für die beantworteten Aufgaben gibt es ein paar XP, den Rest am Ende einer Session.</p><div class="stack"><button class="btn primary" data-act="stay">Weitermachen</button><button class="btn ghost" data-act="quit">Beenden</button></div>`, {
     stay() { sheet.close(); },
     quit() { sheet.close(); quitNow(ctx); }
   });
@@ -87,9 +89,10 @@ function askQuit(ctx) {
 export function quitNow(ctx) {
   const s = ctx.session; if (!s) return;
   abortMic(ctx); tts.stop();
-  engine.abandon(s, ctx.state, ctx.ls); store.save();
+  const xp = engine.abandon(s, ctx.state, ctx.ls); store.save();
   ctx.session = null; router.setGuard(null);
   router.go('home', { replace: true });
+  if (xp > 0) toast(`+${xp} XP für die beantworteten Aufgaben`);
 }
 export function makeGuard(ctx) { return name => { if (!ctx.session || name === 'session') return true; askQuit(ctx); return false; }; }
 export function abortMic(ctx) {
@@ -121,9 +124,17 @@ export function startMic(ctx) {
 }
 export default {
   id: 'session', noDirect: true,
+  header(ctx) {
+    const s = ctx.session; const pct = engine.progressPct(s);
+    return h`<div class="sbar"><button class="x" data-act="quit" aria-label="Session beenden">×</button><div class="prog" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><div id="prog-fill" style="width:${pct}%"></div></div></div>`;
+  },
   render(ctx) {
+    const s = ctx.session; const ex = engine.current(s);
+    return h`<div class="sess"><div id="ex-body">${def(ex).render(ex, s.ui, ctx)}</div></div>`;
+  },
+  footer(ctx) {
     const s = ctx.session; const ex = engine.current(s); const b = bottom(ex, s.ui, ctx);
-    return h`<div class="screen sess"><div class="sbar"><button class="x" data-act="quit" aria-label="Session beenden">×</button><div class="prog" role="progressbar" aria-valuenow="${engine.progressPct(s)}" aria-valuemin="0" aria-valuemax="100"><div id="prog-fill" style="width:${engine.progressPct(s)}%"></div></div></div><div id="ex-body">${def(ex).render(ex, s.ui, ctx)}</div></div><div id="ex-bottom" class="bottom ${b.cls}">${b.html}</div>`;
+    return h`<div id="ex-bottom" class="bottom ${b.cls}">${b.html}</div>`;
   },
   onShow(ctx) { afterRender(ctx); },
   onHide(ctx) { abortMic(ctx); },

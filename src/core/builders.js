@@ -111,3 +111,20 @@ export function buildForLesson(profile, ls, lesson, opts) {
   if (lesson.type === 'script') return buildPluginSession(profile, ls, lesson, opts);
   return buildLessonSession(profile, ls, lesson, opts);
 }
+// Schnellrunde: 6 Wörter, fällige zuerst, gemischte Übungen
+export function buildQuickRound(profile, ls, opts) {
+  opts = opts || {};
+  const ctx = makeCtx(profile, ls);
+  const due = shuffle(dueItems(profile, ls, opts.today));
+  let items = due.slice(0, 6);
+  if (items.length < 6) items = items.concat(shuffle(learnedItems(profile, ls).filter(i => !items.includes(i))).slice(0, 6 - items.length));
+  const budget = { speak: 1 };
+  return { kind: 'quick', lessonId: null, title: 'Schnellrunde', exercises: items.map(it => makeMixed(mixedType(it, profile, opts, budget), it, ctx)), xp: 10 };
+}
+// Nur hören: 8 Wörter, ausschließlich Hörübungen
+export function buildListenOnly(profile, ls, opts) {
+  opts = opts || {};
+  const ctx = makeCtx(profile, ls);
+  const items = shuffle(learnedItems(profile, ls)).slice(0, 8);
+  return { kind: 'listen', lessonId: null, title: 'Nur hören', exercises: items.map(it => makeMixed('listen', it, ctx)), xp: 10 };
+}

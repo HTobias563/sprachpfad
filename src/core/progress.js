@@ -1,6 +1,6 @@
 // Serie, XP, Lernpfad-Fortschritt
 import { todayStr, addDays, daysBetween } from './text.js';
-import { isDue } from './srs.js';
+import { isDue, itemStatus } from './srs.js';
 
 export function dayXp(s, d) { const e = s.days[d]; return e ? (typeof e === 'number' ? e : e.xp || 0) : 0; }
 export function todayXp(s) { return dayXp(s, todayStr()); }
@@ -10,13 +10,32 @@ export function addXp(s, lang, xp, today) {
   e.xp = (e.xp || 0) + xp; e[lang] = (e[lang] || 0) + xp;
   return e.xp;
 }
-export function streak(s, today) {
+export function weekKey(d) {
+  const [y, m, dd] = d.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, dd));
+  const day = dt.getUTCDay() || 7;
+  dt.setUTCDate(dt.getUTCDate() + 4 - day);
+  const y0 = dt.getUTCFullYear();
+  return y0 + '-W' + Math.ceil((((dt - Date.UTC(y0, 0, 1)) / 86400000) + 1) / 7);
+}
+// Serie mit einem automatischen Pausentag pro Woche
+export function streakInfo(s, today) {
   today = today || todayStr();
   let d = dayXp(s, today) > 0 ? today : addDays(today, -1);
-  let n = 0;
-  while (dayXp(s, d) > 0) { n++; d = addDays(d, -1); }
-  return n;
+  let n = 0; const frozen = []; const usedWeeks = new Set(); let guard = 0;
+  while (guard++ < 4000) {
+    if (dayXp(s, d) > 0) { n++; d = addDays(d, -1); continue; }
+    const wk = weekKey(d);
+    if (!usedWeeks.has(wk) && dayXp(s, addDays(d, -1)) > 0) { usedWeeks.add(wk); frozen.push(d); d = addDays(d, -1); continue; }
+    break;
+  }
+  return { streak: n, frozen };
 }
+export function streak(s, today) { return streakInfo(s, today).streak; }
+export function sessionsToday(ls, today) { today = today || todayStr(); return ls.sessions.filter(x => x.d === today).length; }
+export function countLearned(ls) { return Object.values(ls.items).filter(st => { const k = itemStatus(st); return k === 'learned' || k === 'solid'; }).length; }
+export function countSolid(ls) { return Object.values(ls.items).filter(st => itemStatus(st) === 'solid').length; }
+export function weekXp(s, today) { today = today || todayStr(); const out = []; for (let i = 6; i >= 0; i--) { const d = addDays(today, -i); out.push({ d, xp: dayXp(s, d) }); } return out; }
 export function learningDays(s) { return Object.keys(s.days).filter(d => dayXp(s, d) > 0).length; }
 export function nextLesson(profile, ls) { return profile.lessons.find(e => !(ls.lessons[e.lesson.id] && ls.lessons[e.lesson.id].done)) || null; }
 export function unitProgress(unit, ls) { const done = unit.lessons.filter(l => ls.lessons[l.id] && ls.lessons[l.id].done).length; return Math.round(100 * done / unit.lessons.length); }

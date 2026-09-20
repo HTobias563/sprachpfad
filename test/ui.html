@@ -1,5 +1,5 @@
 <!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>UI-Test</title><link rel="stylesheet" href="../styles/app.css"></head><body>
-<div id="app"></div><pre id="log"></pre>
+<div id="app"></div><pre id="log" style="position:absolute;left:0;top:0"></pre>
 <script>window.__errors=[];window.onerror=function(m,s,l){window.__errors.push(m+' @'+(s||'')+':'+l)};window.addEventListener('unhandledrejection',e=>window.__errors.push('rejection '+(e.reason&&e.reason.message||e.reason)));</script>
 <script type="module">
 import '../src/main.js';
@@ -7,11 +7,12 @@ const log=[]; const L=m=>log.push(m);
 const q=s=>document.querySelector(s), qa=s=>Array.from(document.querySelectorAll(s));
 const out=()=>{ document.getElementById('log').textContent=log.join('\n'); };
 const state=()=>window.__app.store.get();
+const route=()=>window.__app.router.current();
 function runSteps(max, label){
   let steps=0, types={};
   while(steps<max){
     steps++;
-    if(!q('.sess')) return {steps,types,end:q('.done')?'done':'nosession'};
+    if(!q('.sess')) return {steps,types,end:q('.done')?'done':'nosession:'+route()};
     const title=q('.qtitle')?q('.qtitle').textContent.replace(/\d+ von 6: .*/,'N von 6'):'?'; types[title]=(types[title]||0)+1;
     if(q('#ex-bottom [data-act="next"]')) q('#ex-bottom [data-act="next"]').click();
     else if(q('[data-act="skip"]')) q('[data-act="skip"]').click();
@@ -22,40 +23,58 @@ function runSteps(max, label){
   }
   return {steps,types,end:'ABORT'};
 }
-function runSession(sel, label){
-  const b=q(sel); if(!b){ L(label+': START BUTTON MISSING'); return; }
-  L(label+': '+b.textContent.trim().replace(/\s+/g,' ').slice(0,50)); b.click();
-  try { const r=runSteps(900,label); L('  '+r.end+' steps='+r.steps+' types='+JSON.stringify(r.types)); if(r.end==='done'){ L('  done: '+q('.done h2').textContent+' '+qa('.stat .v').map(e=>e.textContent).join(' ')); q('[data-act="home"]').click(); } }
-  catch(e){ L('  EXCEPTION '+e.message+' '+(e.stack||'').split('\n')[1]); }
+function finishSession(label){
+  const r=runSteps(900,label); L('  '+r.end+' steps='+r.steps+' types='+JSON.stringify(r.types));
+  if(r.end==='done'){ L('  done: '+q('.done h2').textContent+' due-btn='+!!q('[data-act="again"]')+' miles='+qa('.mile').length); q('[data-act="home"]').click(); }
+  return r;
 }
+function runSession(sel, label){
+  const b=q(sel); if(!b){ L(label+': START BUTTON MISSING ('+sel+') route='+route()); return; }
+  L(label+': '+b.textContent.trim().replace(/\s+/g,' ').slice(0,50)); b.click();
+  try { finishSession(label); } catch(e){ L('  EXCEPTION '+e.message+' '+(e.stack||'').split('\n')[1]); }
+}
+const tab=t=>{ q('[data-act="tab"][data-tab="'+t+'"]').click(); };
 try {
-  L('start route='+window.__app.router.current()+' pending='+(state().pending?'yes':'no'));
-  runSession('[data-act="start-lesson"]', 'lesson1');
+  L('start route='+route());
+  // Onboarding
+  q('[data-act="pick-lang"][data-code="vi"]').click(); q('[data-act="next"]').click(); L('onb step goal='+!!q('[data-act="set-goal"]'));
+  q('[data-act="set-goal"][data-n="1"]').click(); q('[data-act="next"]').click(); L('onb step voice='+!!q('[data-act="test-voice"]'));
+  q('[data-act="finish"]').click(); L('after onboarding route='+route()+' goal='+state().settings.goal+' done='+state().onboardingDone);
+  finishSession('first lesson');
+  L('home route='+route()+' chip='+!!q('[data-act="lang-sheet"]'));
   runSession('[data-act="start-lesson"][data-id="u1l1"]', 'lesson2');
   runSession('[data-act="start-lesson"][data-id="u1l1"]', 'lesson2 repeat');
-  // Abbruch: nach 6 Schritten beenden
-  q('[data-act="start-lesson"][data-id="u1l2"]').click(); runSteps(6,'quit'); const itemsBefore=Object.keys(state().langs.vi.items).length;
+  // Abbruch
+  q('[data-act="start-lesson"][data-id="u1l2"]').click(); runSteps(8,'quit'); const itemsBefore=Object.keys(state().langs.vi.items).length; const xpBefore=state().days['2026-09-20']?state().days['2026-09-20'].xp:0;
   q('[data-act="quit"]').click(); const sheetQuit=q('.overlay [data-act="quit"]'); L('quit sheet='+!!sheetQuit); if(sheetQuit) sheetQuit.click();
-  L('after quit route='+window.__app.router.current()+' pending='+(state().pending?'yes':'no')+' items '+itemsBefore+'→'+Object.keys(state().langs.vi.items).length+' lessons u1l2 done='+!!(state().langs.vi.lessons.u1l2&&state().langs.vi.lessons.u1l2.done));
-  // Fortsetzen: 5 Schritte, dann simulierter Neustart
-  q('[data-act="start-lesson"][data-id="u1l3"]').click(); runSteps(5,'resume');
-  const idxBefore=state().pending?state().pending.idx:-1;
+  L('after quit route='+route()+' pending='+(state().pending?'yes':'no')+' items '+itemsBefore+'→'+Object.keys(state().langs.vi.items).length+' xp '+xpBefore+'→'+(state().days['2026-09-20']||{}).xp);
+  // Fortsetzen
+  q('[data-act="start-lesson"][data-id="u1l3"]').click(); runSteps(5,'resume'); const idxBefore=state().pending?state().pending.idx:-1;
   window.__app.boot();
   const resumeBtn=q('.overlay [data-act="resume"]'); L('resume sheet='+!!resumeBtn+' idx='+idxBefore);
-  if(resumeBtn){ resumeBtn.click(); L('  resumed route='+window.__app.router.current()+' idx='+(window.__app.ctx.session?window.__app.ctx.session.idx:'-')); const r=runSteps(900,'resume'); L('  '+r.end+' steps='+r.steps); if(r.end==='done') q('[data-act="home"]').click(); }
-  // Wiederholung erzwingen
+  if(resumeBtn){ resumeBtn.click(); L('  resumed route='+route()+' idx='+(window.__app.ctx.session?window.__app.ctx.session.idx:'-')); finishSession('resume'); }
+  // Wiederholen erzwingen
   window.__app.store.update(s=>{ Object.values(s.langs.vi.items).forEach(i=>i.due='2000-01-01'); }); window.__app.router.render();
   runSession('[data-act="start-review"]', 'review');
-  q('[data-act="tab"][data-tab="words"]').click(); L('words rows='+qa('.wrow').length);
-  q('[data-act="tab"][data-tab="more"]').click(); L('more drill='+!!q('[data-act="drill"]'));
-  q('[data-act="drill"]').click(); const r=runSteps(200,'drill'); L('drill '+r.end+' steps='+r.steps); if(r.end==='done') q('[data-act="home"]').click();
-  // Willkommen zurück nach Pause
-  window.__app.store.update(s=>{ s.days={'2026-09-01':{xp:30,vi:30}}; }); q('[data-act="tab"][data-tab="home"]').click();
+  // Üben
+  tab('practice'); L('practice cards='+qa('.pcard').length);
+  runSession('[data-act="quick"]', 'quick'); tab('practice'); runSession('[data-act="listen"]', 'listen'); tab('practice'); runSession('[data-act="drill"]', 'drill');
+  // Reise
+  tab('travel'); L('travel rows='+qa('.prow').length);
+  const inp=q('[data-input="search"]'); inp.value='toilette'; inp.dispatchEvent(new Event('input',{bubbles:true})); L('search rows='+qa('.prow').length);
+  q('[data-act="cat"][data-cat="learned"]').click(); L('learned rows='+qa('.prow').length+' q kept='+(q('[data-input="search"]').value==='toilette'));
+  q('[data-act="cat"][data-cat="all"]').click(); const inp2=q('[data-input="search"]'); inp2.value=''; inp2.dispatchEvent(new Event('input',{bubbles:true}));
+  q('.prow').click(); L('showbig='+!!q('.showbig')); const sb=q('.showbig [data-act="close"]'); if(sb) sb.click(); L('showbig closed='+!q('.showbig'));
+  // Profil
+  tab('profile'); L('profile kpis='+qa('.kpi').length+' bars='+qa('.bars .b').length);
+  q('[data-act="set-theme"][data-v="dark"]').click(); L('theme='+document.documentElement.dataset.theme); q('[data-act="set-theme"][data-v="auto"]').click();
+  q('[data-act="lang-sheet"]').click(); L('lang sheet rows='+qa('.overlay .langrow').length); q('.overlay').click(); L('lang sheet closed='+!q('.overlay'));
+  // Willkommen zurück
+  window.__app.store.update(s=>{ s.days={'2026-09-01':{xp:30,vi:30}}; }); tab('home');
   L('welcome button='+!!q('[data-act="start-welcome"]'));
   runSession('[data-act="start-welcome"]', 'welcome');
-  window.__app.store.update(s=>{ s.days['2026-09-20']={xp:60,vi:60}; });
-  q('[data-act="tab"][data-tab="home"]').click();
-  const st=state(); L('state='+JSON.stringify({v:st.v,lessons:Object.keys(st.langs.vi.lessons),days:st.days,items:Object.keys(st.langs.vi.items).length,sessions:st.langs.vi.sessions.length,pending:!!st.pending}));
+  window.__app.store.update(s=>{ s.days['2026-09-20']={xp:60,vi:60}; }); tab('home');
+  const st=state(); L('state='+JSON.stringify({v:st.v,lessons:Object.keys(st.langs.vi.lessons),days:Object.keys(st.days),items:Object.keys(st.langs.vi.items).length,sessions:st.langs.vi.sessions.length,pending:!!st.pending}));
 } catch(e){ L('EXCEPTION '+e.message+' '+(e.stack||'').split('\n').slice(0,2).join(' | ')); }
 L('errors='+JSON.stringify(window.__errors));
 out(); document.title='UI-DONE';
