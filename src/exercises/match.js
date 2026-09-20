@@ -1,6 +1,7 @@
 // Zuordnung: Paare Zielsprache ↔ Deutsch. Fehlgriffe zählen für die betroffenen Wörter, die Übung wird nicht wiederholt.
 import { h } from '../ui/dom.js';
 import { shuffle } from '../core/text.js';
+import { roman } from '../ui/parts.js';
 
 export default {
   type: 'match', multi: true,
@@ -11,7 +12,7 @@ export default {
     const matched = ui.matched || [];
     const col = (arr, side, isTarget) => arr.map(o => {
       const done = matched.includes(o.id), sel = ui[side] === o.id, flash = ui.flash && ui.flash[side] === o.id;
-      return h`<button class="opt ${done ? 'right' : flash ? 'wrong' : sel ? 'sel' : ''}" data-act="pair" data-side="${side}" data-id="${o.id}" ${done || ui.fb ? 'disabled' : ''} ${isTarget ? h`lang="${ctx.lang.code}"` : ''}>${o.text}</button>`;
+      return h`<button class="opt ${done ? 'right' : flash ? 'wrong' : sel ? 'sel' : ''}" data-act="pair" data-side="${side}" data-id="${o.id}" ${done || ui.fb ? 'disabled' : ''} ${isTarget ? h`lang="${ctx.lang.code}"` : ''}><span>${o.text}${isTarget ? roman(ctx.item(o.id), ctx) : ''}</span></button>`;
     });
     return h`<h2 class="qtitle">Finde die Paare</h2><div class="pairs"><div class="col">${col(ex.left, 'l', true)}</div><div class="col">${col(ex.right, 'r', false)}</div></div>`;
   },

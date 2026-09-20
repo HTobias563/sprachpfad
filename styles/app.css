@@ -243,3 +243,11 @@ body[data-screen="session"] #main>.sess{animation:slideup .25s cubic-bezier(.2,.
 /* Done */
 .mile{background:var(--card);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow);display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%}
 .mile .i{font-size:28px}.mile .t{font-weight:800}.mile .x{font-size:14px;color:var(--muted)}
+
+/* Umschrift, Schrift-Übungen */
+.rom{display:block;font-size:13px;color:var(--muted);font-weight:500;letter-spacing:.01em}
+.opt .rom{font-size:12px}
+.big .rom{font-size:14px}
+.glyph{font-size:56px;font-weight:800;line-height:1.1;letter-spacing:.02em}
+.buildbox{display:flex;align-items:center;gap:16px;background:var(--card);border-radius:var(--radius);padding:12px 16px;box-shadow:var(--shadow);margin:14px 0}
+.buildbox .glyph{min-width:72px;text-align:center}

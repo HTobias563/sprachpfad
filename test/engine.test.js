@@ -27,6 +27,11 @@ function checkContract(ex, lessonId) {
     assert.ok(ex.tiles.length > ex.target.length, 'keine Extra-Kacheln ' + ex.itemId);
   } else if (ex.type === 'script_listen') {
     assert.ok(ex.options.length >= 2 && ex.answer < ex.options.length && ex.speak === ex.options[ex.answer]);
+  } else if (ex.type === 'script_recognize') {
+    assert.equal(ex.options.length, 4); assert.equal(new Set(ex.options).size, 4, 'Umschriften eindeutig ' + ex.glyph); assert.ok(ex.answer >= 0 && ex.answer < 4 && ex.glyph && ex.speak);
+  } else if (ex.type === 'script_build') {
+    assert.ok(ex.target.length >= 2 && ex.tiles.length > ex.target.length && ex.roman && ex.glyph);
+    ex.target.forEach(w => assert.ok(ex.tiles.some(t => t.w === w), 'Baustein fehlt ' + w));
   } else if (ex.type === 'match') {
     assert.ok(ex.itemIds.length >= 3 && ex.left.length === ex.itemIds.length && ex.right.length === ex.itemIds.length);
     assert.deepEqual(ex.left.map(o => o.id).sort(), ex.itemIds.slice().sort());
@@ -38,7 +43,7 @@ function checkContract(ex, lessonId) {
   assert.deepEqual(JSON.parse(JSON.stringify(ex)), ex, 'nicht serialisierbar ' + ex.type);
 }
 
-test('jede Lektion ergibt eine gültige Session (neu und wiederholt)', () => {
+for (const p of Object.values(PROFILES)) test(`${p.code}: jede Lektion ergibt eine gültige Session (neu und wiederholt)`, () => {
   const ls = emptyLang();
   for (const e of p.lessons) {
     for (const repeat of [false, true]) {
@@ -52,9 +57,13 @@ test('jede Lektion ergibt eine gültige Session (neu und wiederholt)', () => {
         if (repeat) assert.ok(!s.exercises.some(x => x.type === 'tip'));
         if (e.lesson.type === 'understand') assert.ok(s.exercises.every(x => x.type === 'intro' || x.type === 'tip' || (x.type === 'choose' && x.dir !== 'de2t') || x.type === 'match'), 'Verstehen-Lektion nur erkennen ' + e.lesson.id);
         assert.ok(s.exercises.length <= 30, 'zu lang ' + e.lesson.id + ' ' + s.exercises.length);
-      } else if (!repeat) {
+      } else if (!repeat && e.lesson.plugin === 'tones') {
         assert.equal(s.exercises.filter(x => x.type === 'script_intro').length, 6);
         assert.equal(s.exercises[0].type, 'script_overview');
+      } else if (e.lesson.plugin === 'hangul') {
+        assert.ok(s.exercises.some(x => x.type === 'script_recognize'), 'Hangul: lesen ' + e.lesson.id);
+        assert.ok(s.exercises.some(x => x.type === 'script_listen'), 'Hangul: hören ' + e.lesson.id);
+        assert.ok(s.exercises.some(x => x.type === 'script_build'), 'Hangul: bauen ' + e.lesson.id);
       }
     }
   }
@@ -208,4 +217,31 @@ test('Schnellrunde und Nur hören', () => {
   p.allItems.slice(0, 10).forEach(it => gradeItem(ls, it.id, false, '2026-09-01'));
   const q = buildQuickRound(p, ls, { today }); assert.equal(q.exercises.length, 6); q.exercises.forEach(ex => checkContract(ex, 'quick'));
   const l = buildListenOnly(p, ls, {}); assert.equal(l.exercises.length, 8); assert.ok(l.exercises.every(ex => ex.type === 'choose' && ex.dir === 'listen'));
+});
+
+test('Hangul: Silben zusammensetzen und Plugin-Training', async () => {
+  const H = await import('../data/hangul.js');
+  assert.equal(H.compose('ㄱ', 'ㅏ', 'ㅁ'), '감'); assert.equal(H.compose('ㅇ', 'ㅓ', ''), '어'); assert.deepEqual(H.decompose('강'), { l: 'ㄱ', v: 'ㅏ', t: 'ㅇ' });
+  const ko = PROFILES.ko; const plugin = ko.plugins.hangul;
+  assert.equal(plugin.compose(['ㄱ', 'ㅏ', 'ㅁ']), '감'); assert.equal(plugin.compose(['ㄱ']), 'ㄱ'); assert.equal(plugin.compose(['ㄱ', 'ㅏ']), '가');
+  const d = buildDrill(ko, emptyLang(), 'hangul', 10); assert.equal(d.exercises.length, 10); d.exercises.forEach(ex => checkContract(ex, 'hangul-drill'));
+  // Fertig erst nach allen fünf Lektionen, dann wird die Umschrift ausgeblendet
+  const state = defaultState(); const ls = emptyLang(); state.langs.ko = ls; state.activeLang = 'ko';
+  const lessons = ko.lessons.filter(e => e.lesson.plugin === 'hangul');
+  let done;
+  lessons.forEach((e, i) => {
+    const def = buildForLesson(ko, ls, e.lesson, { today });
+    const s = createSession(def, 'ko'); const ctx = makeCtx(ko, ls);
+    while (true) { const ex = current(s); if (!registry[ex.type].card) record(s, ex, { correct: true }, ctx); if (advance(s) === 'finished') break; }
+    done = finish(s, state, ls, today, ko);
+    assert.equal(!!ls.plugins.hangul.done, i === lessons.length - 1, 'Plugin fertig nach Lektion ' + (i + 1));
+  });
+  assert.equal(state.settings.showRoman, false);
+  assert.ok(done.milestones.some(m => m.title === 'Schrift geschafft'));
+});
+test('Koreanisch: Sprechvergleich ohne Leerzeichen', () => {
+  const ko = PROFILES.ko;
+  assert.equal(ko.speechMatch(ko.items['ko-cheoncheonhi'], ['천천히말해주세요']).correct, true);
+  assert.equal(ko.speechMatch(ko.items['ko-gamsa'], ['고맙습니다']).correct, true);
+  assert.equal(ko.speechMatch(ko.items['ko-gamsa'], ['안녕하세요']).correct, false);
 });

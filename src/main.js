@@ -41,6 +41,7 @@ const ctx = {
   unlockAudio() { tts.unlock(); sfx.unlock(); },
   speakAllowed() { return sr.usable(ctx.state.settings); },
   listenAllowed() { return tts.voiceState(ctx.lang) !== 'missing'; },
+  showRoman() { return ctx.state.settings.showRoman !== false; },
   resetSpeech() { sr.setBroken(false); },
   startSession(def, opts) {
     if (!def.exercises.length) { toast('Noch nichts zum Üben. Erst eine Lektion lernen.'); return; }

@@ -40,8 +40,9 @@ export default {
       const nodes = u.lessons.map((l, li) => {
         const L = ls.lessons[l.id]; const done = L && L.done; const isNext = next && next.lesson.id === l.id;
         const cls = done ? 'done' : isNext ? 'next' : '';
-        const iconTxt = done ? '✓' : l.type === 'script' ? '♪' : isNext ? '★' : (li + 1);
-        const meta = done ? `${L.count}× gemacht · nochmal üben` : isNext ? 'Jetzt dran' : (l.type === 'script' ? 'Hören & erkennen' : l.type === 'understand' ? `${lang.itemsOf(l.id).length} Sätze verstehen` : `${lang.itemsOf(l.id).length} neue Wörter`);
+        const plugin = l.type === 'script' ? lang.plugins[l.plugin] : null;
+        const iconTxt = done ? '✓' : plugin ? (plugin.icon || '♪') : isNext ? '★' : (li + 1);
+        const meta = done ? `${L.count}× gemacht · nochmal üben` : isNext ? 'Jetzt dran' : (plugin ? (plugin.lessonMeta || 'Hören & erkennen') : l.type === 'understand' ? `${lang.itemsOf(l.id).length} Sätze verstehen` : `${lang.itemsOf(l.id).length} neue Wörter`);
         return h`<button class="node ${cls}" data-act="start-lesson" data-id="${l.id}"><div class="c">${iconTxt}</div><div><div class="l">${l.title}</div><div class="m">${meta}</div></div></button>`;
       });
       return h`<section class="unit" style="--uc:${u.color}"><div class="unit-head"><div><div class="n">Einheit ${ui + 1}</div><div class="t">${u.title}</div><div class="s">${u.subtitle}</div></div><div class="pct">${unitProgress(u, ls)}%</div></div><div class="path">${nodes}</div></section>`;

@@ -39,6 +39,7 @@ export default {
       <div class="card">
         <div class="setrow"><div><div class="l">Tagesziel</div><div class="d">Sessions pro Tag</div></div>${seg('goal', [{ v: 10, l: '1' }, { v: 20, l: '2' }, { v: 30, l: '3' }], s.settings.goal)}</div>
         <div class="setrow"><div><div class="l">Erscheinungsbild</div><div class="d">Hell, dunkel oder wie das System</div></div>${seg('theme', [{ v: 'auto', l: 'Auto' }, { v: 'light', l: 'Hell' }, { v: 'dark', l: 'Dunkel' }], s.settings.theme)}</div>
+        ${lang.hasRoman ? h`<div class="setrow"><div><div class="l">Umschrift zeigen</div><div class="d">Lateinische Umschrift unter der Schrift. Wird nach der Schrift-Einheit automatisch ausgeblendet.</div></div><button class="switch ${s.settings.showRoman !== false ? 'on' : ''}" role="switch" aria-checked="${s.settings.showRoman !== false}" data-act="toggle" data-key="showRoman"></button></div>` : ''}
         <div class="setrow"><div><div class="l">Sprechübungen</div><div class="d">Nachsprechen mit Mikrofon, braucht Internet</div></div><button class="switch ${s.settings.speak ? 'on' : ''}" role="switch" aria-checked="${!!s.settings.speak}" data-act="toggle" data-key="speak"></button></div>
         <div class="setrow"><div><div class="l">Feedback-Töne</div><div class="d">Kurzer Klang bei richtig und falsch</div></div><button class="switch ${s.settings.sound ? 'on' : ''}" role="switch" aria-checked="${!!s.settings.sound}" data-act="toggle" data-key="sound"></button></div>
         <div class="setrow"><div><div class="l">Sprachausgabe</div><div class="d">${voiceInfo}. Nichts zu hören? Lautlos-Schalter und Lautstärke prüfen.</div></div><button class="spk small" data-act="say-test" aria-label="Testen">${raw(icon('speaker'))}</button></div>
@@ -55,7 +56,7 @@ export default {
   actions: {
     'set-goal'(ctx, el) { ctx.update(s => { s.settings.goal = Number(el.dataset.v); }); ctx.render(); },
     'set-theme'(ctx, el) { ctx.update(s => { s.settings.theme = el.dataset.v; }); applyTheme(el.dataset.v); ctx.render(); },
-    toggle(ctx, el) { const k = el.dataset.key; ctx.update(s => { s.settings[k] = !s.settings[k]; }); if (k === 'speak') ctx.resetSpeech(); ctx.render(); },
+    toggle(ctx, el) { const k = el.dataset.key; ctx.update(s => { s.settings[k] = k === 'showRoman' ? s.settings.showRoman === false : !s.settings[k]; }); if (k === 'speak') ctx.resetSpeech(); ctx.render(); },
     'say-test'(ctx) { ctx.unlockAudio(); ctx.speak(ctx.lang.data.testPhrase || ctx.lang.allItems[0].text); setTimeout(() => ctx.render(), 500); },
     switch(ctx, el) { ctx.switchLang(el.dataset.code); },
     'lang-sheet'(ctx) { openLangSheet(ctx); },

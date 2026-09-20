@@ -51,7 +51,14 @@ export function finish(s, state, ls, today, profile) {
     const acc = s.answered ? Math.round(100 * s.correct / s.answered) : 100;
     L.best = L.best == null ? acc : Math.max(L.best, acc);
     ls.lessons[d.lessonId] = L;
-    if (d.plugin) { const P = ls.plugins[d.plugin] || {}; P.done = true; P.count = (P.count || 0) + 1; ls.plugins[d.plugin] = P; }
+    if (d.plugin) {
+      const P = ls.plugins[d.plugin] || {}; P.count = (P.count || 0) + 1;
+      const all = profile ? profile.lessons.filter(e => e.lesson.type === 'script' && e.lesson.plugin === d.plugin) : [];
+      const wasDone = !!P.done;
+      P.done = all.length ? all.every(e => ls.lessons[e.lesson.id] && ls.lessons[e.lesson.id].done) : true;
+      ls.plugins[d.plugin] = P;
+      if (P.done && !wasDone && all.length > 1) { P.completedAt = today; if (state.settings.showRoman !== false) { state.settings.showRoman = false; P.hidRoman = true; } }
+    }
   }
   const perfect = !s.anyWrong;
   const xp = d.xp + (perfect ? 5 : 0);
@@ -77,6 +84,7 @@ export function finish(s, state, ls, today, profile) {
       if (allDone && othersDone && firstTime && unit.can) milestones.push({ icon: '🏁', title: `Einheit „${unit.title}“ fertig`, text: 'Du kannst jetzt: ' + unit.can.join(' · ') });
     }
   }
+  if (d.plugin && ls.plugins[d.plugin] && ls.plugins[d.plugin].completedAt === today && ls.plugins[d.plugin].hidRoman && !ls.plugins[d.plugin].hidRomanShown) { ls.plugins[d.plugin].hidRomanShown = true; milestones.unshift({ icon: '🔤', title: 'Schrift geschafft', text: 'Die Umschrift wird ab jetzt ausgeblendet. Unter Profil kannst du sie jederzeit wieder einschalten.' }); }
   const due = profile ? dueItems(profile, ls, today).length : 0;
   return { xp, perfect, accuracy: s.answered ? Math.round(100 * s.correct / s.answered) : 100, streak: after.streak, streakBefore: before.streak, goalHit: todayXp(state) >= state.settings.goal, xpBefore: todayXp(state) - xp, kind: d.kind, title: d.title, seconds, milestones, due };
 }

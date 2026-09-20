@@ -74,7 +74,16 @@ try {
   L('welcome button='+!!q('[data-act="start-welcome"]'));
   runSession('[data-act="start-welcome"]', 'welcome');
   window.__app.store.update(s=>{ s.days['2026-09-20']={xp:60,vi:60}; }); tab('home');
-  const st=state(); L('state='+JSON.stringify({v:st.v,lessons:Object.keys(st.langs.vi.lessons),days:Object.keys(st.days),items:Object.keys(st.langs.vi.items).length,sessions:st.langs.vi.sessions.length,pending:!!st.pending}));
+  // Koreanisch
+  q('[data-act="lang-sheet"]').click(); q('.overlay [data-act="pick"][data-code="ko"]').click(); L('switched lang='+state().activeLang+' chip='+(q('.chip .name')||{}).textContent);
+  runSession('[data-act="start-lesson"][data-id="ko-u0l1"]', 'hangul1');
+  runSession('[data-act="start-lesson"][data-id="ko-u0l5"]', 'hangul5');
+  runSession('[data-act="start-lesson"][data-id="ko-u1l1"]', 'ko lesson');
+  L('roman shown='+!!q('.rom')+' setting='+state().settings.showRoman);
+  tab('practice'); runSession('[data-act="drill"]', 'hangul drill');
+  tab('travel'); L('ko travel rows='+qa('.prow').length);
+  q('[data-act="lang-sheet"]')||tab('home'); q('[data-act="lang-sheet"]').click(); q('.overlay [data-act="pick"][data-code="vi"]').click(); L('back to '+state().activeLang);
+  const st=state(); L('state='+JSON.stringify({v:st.v,lessons:Object.keys(st.langs.vi.lessons),days:Object.keys(st.days),items:Object.keys(st.langs.vi.items).length,sessions:st.langs.vi.sessions.length,ko:st.langs.ko?Object.keys(st.langs.ko.lessons):null,pending:!!st.pending}));
 } catch(e){ L('EXCEPTION '+e.message+' '+(e.stack||'').split('\n').slice(0,2).join(' | ')); }
 L('errors='+JSON.stringify(window.__errors));
 out(); document.title='UI-DONE';

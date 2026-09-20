@@ -1,7 +1,7 @@
 // Auswahl aus vier Optionen. dir: 't2de' (Zielsprache → Deutsch), 'de2t' (Deutsch → Zielsprache), 'listen' (Audio → Zielsprache)
 import { h } from '../ui/dom.js';
 import { shuffle, norm } from '../core/text.js';
-import { spkBtn, slowBtn, target } from '../ui/parts.js';
+import { spkBtn, slowBtn, target, roman } from '../ui/parts.js';
 
 export function distractors(item, n, field, lang) {
   const seen = new Set([norm(item[field])]);
@@ -32,14 +32,14 @@ export default {
     const it = ctx.item(ex.itemId); const say = ctx.lang.speakText(it); const fb = ui.fb;
     let head;
     if (ex.dir === 'listen') head = h`<h2 class="qtitle">Was hörst du?</h2><div class="row" style="margin-bottom:18px">${spkBtn(say)}${slowBtn(say)}</div>`;
-    else if (ex.dir === 't2de') head = h`<h2 class="qtitle">Was bedeutet das?</h2><div class="row" style="margin-bottom:18px">${spkBtn(say, 'small')}${target(it.text, ctx.lang, 'big')}</div>`;
+    else if (ex.dir === 't2de') head = h`<h2 class="qtitle">Was bedeutet das?</h2><div class="row" style="margin-bottom:18px">${spkBtn(say, 'small')}<div>${target(it.text, ctx.lang, 'big')}${roman(it, ctx)}</div></div>`;
     else head = h`<h2 class="qtitle">Wie sagt man das?</h2><div class="big" style="margin-bottom:18px">${it.de}</div>`;
     const isTarget = ex.dir !== 't2de';
     const opts = ex.options.map((o, i) => {
       let cls = '';
       if (fb) { if (o.id === it.id) cls = 'right'; else if (i === ui.sel) cls = 'wrong'; }
       else if (i === ui.sel) cls = 'sel';
-      return h`<button class="opt ${cls}" data-act="opt" data-i="${i}" ${fb ? 'disabled' : ''}><span class="k">${i + 1}</span><span ${isTarget ? h`lang="${ctx.lang.code}"` : ''}>${o.text}</span></button>`;
+      return h`<button class="opt ${cls}" data-act="opt" data-i="${i}" ${fb ? 'disabled' : ''}><span class="k">${i + 1}</span><span ${isTarget ? h`lang="${ctx.lang.code}"` : ''}>${o.text}${isTarget ? roman(ctx.item(o.id), ctx) : ''}</span></button>`;
     });
     return h`${head}<div class="opts">${opts}</div>`;
   },
