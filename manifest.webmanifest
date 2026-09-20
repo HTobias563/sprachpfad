@@ -1,7 +1,7 @@
 {
   "name": "Sprachpfad",
   "short_name": "Sprachpfad",
-  "description": "Vietnamesisch für den Urlaub, in kurzen Sessions, offline.",
+  "description": "Urlaubssprachen lernen in kurzen Sessions, offline.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

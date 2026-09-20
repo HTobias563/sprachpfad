@@ -1,45 +1,56 @@
-<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>UI-Test</title></head><body>
+<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>UI-Test</title><link rel="stylesheet" href="../styles/app.css"></head><body>
 <div id="app"></div><pre id="log"></pre>
-<script>window.__errors=[];window.onerror=function(m,s,l){window.__errors.push(m+' @'+l)};</script>
-<script src="../data/vi.js"></script><script src="../app.js"></script>
-<script>
-// Klickt sich synchron durch drei Sessions: erste Lektion (Töne), zweite Lektion (Wörter), Wiederholung.
-(function(){
-  const log=[]; const L=m=>log.push(m);
-  const q=s=>document.querySelector(s), qa=s=>Array.from(document.querySelectorAll(s));
-  const out=()=>{ document.getElementById('log').textContent=log.join('\n'); };
-  function runSession(startSel, label){
-    const b=q(startSel); if(!b){ L(label+': START BUTTON MISSING'); return false; }
-    L(label+': '+b.textContent.trim().replace(/\s+/g,' ').slice(0,60)); b.click();
-    let steps=0, types={};
-    try {
-      while(steps<800){
-        steps++;
-        if(!q('.sess')){ if(q('.done')){ L('  done screen: '+q('.done h2').textContent+' '+qa('.stat .v').map(e=>e.textContent).join(' ')); q('[data-home]').click(); L('  steps='+steps+' types='+JSON.stringify(types)); return true; } L('  NO SESSION after step '+steps); return false; }
-        const title=q('.qtitle')?q('.qtitle').textContent.replace(/\d+ von 6: .*/,'N von 6'):'?'; types[title]=(types[title]||0)+1;
-        if(q('[data-next]')) q('[data-next]').click();
-        else if(q('[data-skip]')) q('[data-skip]').click();
-        else if(q('[data-tile]')) { const free=qa('[data-tile]:not(.used)'); const chk=q('[data-check]:not([disabled])'); if(free.length && (!chk || steps%3)) free[0].click(); else chk.click(); }
-        else if(q('[data-opt]')) { const chk=q('[data-check]:not([disabled])'); if(!chk){ const o=qa('[data-opt]'); o[Math.floor(Math.random()*o.length)].click(); } else chk.click(); }
-        else { L('  STUCK on '+title); return false; }
-      }
-      L('  ABORT too many steps'); return false;
-    } catch(e){ L('  EXCEPTION '+e.message+' '+(e.stack||'').split('\n')[1]); return false; }
+<script>window.__errors=[];window.onerror=function(m,s,l){window.__errors.push(m+' @'+(s||'')+':'+l)};window.addEventListener('unhandledrejection',e=>window.__errors.push('rejection '+(e.reason&&e.reason.message||e.reason)));</script>
+<script type="module">
+import '../src/main.js';
+const log=[]; const L=m=>log.push(m);
+const q=s=>document.querySelector(s), qa=s=>Array.from(document.querySelectorAll(s));
+const out=()=>{ document.getElementById('log').textContent=log.join('\n'); };
+const state=()=>window.__app.store.get();
+function runSteps(max, label){
+  let steps=0, types={};
+  while(steps<max){
+    steps++;
+    if(!q('.sess')) return {steps,types,end:q('.done')?'done':'nosession'};
+    const title=q('.qtitle')?q('.qtitle').textContent.replace(/\d+ von 6: .*/,'N von 6'):'?'; types[title]=(types[title]||0)+1;
+    if(q('#ex-bottom [data-act="next"]')) q('#ex-bottom [data-act="next"]').click();
+    else if(q('[data-act="skip"]')) q('[data-act="skip"]').click();
+    else if(q('[data-act="tile"]')) { const free=qa('[data-act="tile"]:not(.used)'); const chk=q('[data-act="check"]:not([disabled])'); if(free.length && (!chk || steps%3)) free[0].click(); else chk.click(); }
+    else if(q('[data-act="opt"]')) { const chk=q('[data-act="check"]:not([disabled])'); if(!chk){ const o=qa('[data-act="opt"]'); o[Math.floor(Math.random()*o.length)].click(); } else chk.click(); }
+    else return {steps,types,end:'STUCK on '+title};
   }
-  runSession('[data-start-lesson]', 'lesson1');
-  runSession('[data-start-lesson="u1l1"]', 'lesson2');
-  runSession('[data-start-lesson="u1l1"]', 'lesson2 repeat');
-  // Wiederholung erzwingen: alle gelernten Wörter fällig machen
-  try { const st=JSON.parse(localStorage.getItem('sprachpfad.v1')); Object.values(st.items).forEach(i=>i.due='2000-01-01'); localStorage.setItem('sprachpfad.v1', JSON.stringify(st)); } catch(e){ L('state edit failed '+e.message); }
-  location.hash=''; // Home neu rendern über Tab
-  q('[data-tab="words"]').click(); L('words rows='+qa('.wrow').length+' due='+qa('.wrow .due').length);
-  q('[data-tab="more"]').click(); L('more ok='+!!q('[data-tones]'));
-  q('[data-tab="home"]').click();
-  L('home review button='+(q('[data-start-review]')?q('[data-start-review]').textContent.trim().replace(/\s+/g,' '):'none'));
-  q('[data-tab="home"]').click();
-  let st=null; try{ st=JSON.parse(localStorage.getItem('sprachpfad.v1')); }catch(e){}
-  L('state='+(st?JSON.stringify({lessons:st.lessons,days:st.days,items:Object.keys(st.items).length}):'none'));
-  L('errors='+JSON.stringify(window.__errors));
-  out(); document.title='UI-DONE';
-})();
+  return {steps,types,end:'ABORT'};
+}
+function runSession(sel, label){
+  const b=q(sel); if(!b){ L(label+': START BUTTON MISSING'); return; }
+  L(label+': '+b.textContent.trim().replace(/\s+/g,' ').slice(0,50)); b.click();
+  try { const r=runSteps(900,label); L('  '+r.end+' steps='+r.steps+' types='+JSON.stringify(r.types)); if(r.end==='done'){ L('  done: '+q('.done h2').textContent+' '+qa('.stat .v').map(e=>e.textContent).join(' ')); q('[data-act="home"]').click(); } }
+  catch(e){ L('  EXCEPTION '+e.message+' '+(e.stack||'').split('\n')[1]); }
+}
+try {
+  L('start route='+window.__app.router.current()+' pending='+(state().pending?'yes':'no'));
+  runSession('[data-act="start-lesson"]', 'lesson1');
+  runSession('[data-act="start-lesson"][data-id="u1l1"]', 'lesson2');
+  runSession('[data-act="start-lesson"][data-id="u1l1"]', 'lesson2 repeat');
+  // Abbruch: nach 6 Schritten beenden
+  q('[data-act="start-lesson"][data-id="u1l2"]').click(); runSteps(6,'quit'); const itemsBefore=Object.keys(state().langs.vi.items).length;
+  q('[data-act="quit"]').click(); const sheetQuit=q('.overlay [data-act="quit"]'); L('quit sheet='+!!sheetQuit); if(sheetQuit) sheetQuit.click();
+  L('after quit route='+window.__app.router.current()+' pending='+(state().pending?'yes':'no')+' items '+itemsBefore+'→'+Object.keys(state().langs.vi.items).length+' lessons u1l2 done='+!!(state().langs.vi.lessons.u1l2&&state().langs.vi.lessons.u1l2.done));
+  // Fortsetzen: 5 Schritte, dann simulierter Neustart
+  q('[data-act="start-lesson"][data-id="u1l3"]').click(); runSteps(5,'resume');
+  const idxBefore=state().pending?state().pending.idx:-1;
+  window.__app.boot();
+  const resumeBtn=q('.overlay [data-act="resume"]'); L('resume sheet='+!!resumeBtn+' idx='+idxBefore);
+  if(resumeBtn){ resumeBtn.click(); L('  resumed route='+window.__app.router.current()+' idx='+(window.__app.ctx.session?window.__app.ctx.session.idx:'-')); const r=runSteps(900,'resume'); L('  '+r.end+' steps='+r.steps); if(r.end==='done') q('[data-act="home"]').click(); }
+  // Wiederholung erzwingen
+  window.__app.store.update(s=>{ Object.values(s.langs.vi.items).forEach(i=>i.due='2000-01-01'); }); window.__app.router.render();
+  runSession('[data-act="start-review"]', 'review');
+  q('[data-act="tab"][data-tab="words"]').click(); L('words rows='+qa('.wrow').length);
+  q('[data-act="tab"][data-tab="more"]').click(); L('more drill='+!!q('[data-act="drill"]'));
+  q('[data-act="drill"]').click(); const r=runSteps(200,'drill'); L('drill '+r.end+' steps='+r.steps); if(r.end==='done') q('[data-act="home"]').click();
+  q('[data-act="tab"][data-tab="home"]').click();
+  const st=state(); L('state='+JSON.stringify({v:st.v,lessons:Object.keys(st.langs.vi.lessons),days:st.days,items:Object.keys(st.langs.vi.items).length,sessions:st.langs.vi.sessions.length,pending:!!st.pending}));
+} catch(e){ L('EXCEPTION '+e.message+' '+(e.stack||'').split('\n').slice(0,2).join(' | ')); }
+L('errors='+JSON.stringify(window.__errors));
+out(); document.title='UI-DONE';
 </script></body></html>

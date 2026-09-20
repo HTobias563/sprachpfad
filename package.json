@@ -1,0 +1,10 @@
+{
+  "name": "sprachpfad",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "ui-test": "sh test/ui.sh",
+    "serve": "node tools/serve.js"
+  }
+}

@@ -1,14 +1,15 @@
-/* Sprachpfad Service Worker: alles offline verfügbar halten */
-const VERSION = 'v20260920135834';
+/* Sprachpfad Service Worker: alle Dateien vorab cachen, Updates erst nach Bestätigung aktivieren */
+const VERSION = 'v20260920163021';
 const CACHE = 'sprachpfad-' + VERSION;
-const ASSETS = ['./', './index.html', './app.js', './data/vi.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
+const ASSETS = ['./', './apple-touch-icon.png', './data/vi.js', './icon-192.png', './icon-512.png', './icon.svg', './index.html', './manifest.webmanifest', './src/core/builders.js', './src/core/migrations.js', './src/core/progress.js', './src/core/session.js', './src/core/srs.js', './src/core/store.js', './src/core/text.js', './src/exercises/choose.js', './src/exercises/index.js', './src/exercises/intro.js', './src/exercises/script.js', './src/exercises/speak.js', './src/exercises/tiles.js', './src/lang/profile.js', './src/lang/registry.js', './src/lang/vi/index.js', './src/lang/vi/tones.js', './src/main.js', './src/platform/sfx.js', './src/platform/sr.js', './src/platform/sw-client.js', './src/platform/tts.js', './src/ui/dom.js', './src/ui/parts.js', './src/ui/router.js', './src/ui/screens/done.js', './src/ui/screens/home.js', './src/ui/screens/more.js', './src/ui/screens/session.js', './src/ui/screens/words.js', './src/ui/sheet.js', './src/ui/shell.js', './src/ui/toast.js', './src/version.js', './styles/app.css'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
+self.addEventListener('message', e => { if (e.data === 'SKIP_WAITING') self.skipWaiting(); });
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
@@ -16,11 +17,12 @@ self.addEventListener('fetch', e => {
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
     const cached = await cache.match(e.request, { ignoreSearch: true });
-    const net = fetch(e.request).then(res => { if (res && res.ok) cache.put(e.request, res.clone()); return res; }).catch(() => null);
-    if (cached) { e.waitUntil(net); return cached; }
-    const res = await net;
-    if (res) return res;
-    if (e.request.mode === 'navigate') { const idx = await cache.match('./index.html'); if (idx) return idx; }
-    return new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+    if (cached) return cached;
+    try {
+      return await fetch(e.request);
+    } catch (err) {
+      if (e.request.mode === 'navigate') { const idx = await cache.match('./index.html'); if (idx) return idx; }
+      return new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+    }
   })());
 });
