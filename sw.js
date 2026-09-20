@@ -1,5 +1,5 @@
 /* Sprachpfad Service Worker: alles offline verfügbar halten */
-const VERSION = 'v1';
+const VERSION = 'v20260920135834';
 const CACHE = 'sprachpfad-' + VERSION;
 const ASSETS = ['./', './index.html', './app.js', './data/vi.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
