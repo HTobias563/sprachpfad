@@ -4,6 +4,7 @@ import { icon } from '../icons.js';
 import { titleBar } from '../shell.js';
 import { itemStatus } from '../../core/srs.js';
 import { norm } from '../../core/text.js';
+import { NUMBERS, CURRENCY, fmt } from '../../lang/numbers.js';
 
 function flat(s) { return norm(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd'); }
 function filtered(ctx) {
@@ -23,6 +24,14 @@ function list(ctx) {
   items.forEach(it => { if (!byUnit.has(it.unitId)) byUnit.set(it.unitId, []); byUnit.get(it.unitId).push(it); });
   return lang.data.units.filter(u => byUnit.has(u.id)).map(u => h`<h3 class="sec">${u.title}</h3><div class="card">${byUnit.get(u.id).map(it => h`<button class="prow" data-act="show" data-id="${it.id}"><span class="st ${itemStatus(ls.items[it.id])}" title="${itemStatus(ls.items[it.id])}"></span><div class="w"><div class="t" lang="${lang.code}">${it.text}</div><div class="d">${it.reading && it.reading !== it.text ? h`<span lang="${lang.code}">${it.reading}</span> · ` : ''}${it.roman ? h`${it.roman} · ` : ''}${it.de}${it.hint ? h` · <i>${it.hint}</i>` : ''}</div></div><span class="spk small" data-act="say" data-text="${lang.speakText(it)}" role="button" aria-label="Anhören">${raw(icon('speaker'))}</span></button>`)}</div>`);
 }
+function numOut(ctx) {
+  const t = ctx.travel || {}; const code = ctx.lang.code; const gen = NUMBERS[code]; const cur = CURRENCY[code];
+  const n = parseInt(String(t.num || '').replace(/\D/g, ''), 10);
+  if (!gen || !Number.isFinite(n)) return h`<div class="muted small">Zahl eintippen, dann lesen und anhören. Praktisch beim Handeln und an der Kasse.</div>`;
+  if (n > 999999999) return h`<div class="muted small">Bis 999.999.999 bitte.</div>`;
+  const w = gen(n); const eur = n / cur.per;
+  return h`<div class="row"><button class="spk" data-act="say" data-text="${w.speak + ' ' + (cur.speakUnit || cur.unit)}" aria-label="Anhören">${raw(icon('speaker'))}</button><div><div class="mid" lang="${code}">${w.text} ${cur.unit}</div>${w.reading ? h`<div class="rom" lang="${code}">${w.reading}${cur.speakUnit || ''}</div>` : ''}<div class="muted small">${fmt(n)} ${cur.sym} ≈ ${eur < 10 ? eur.toFixed(2).replace('.', ',') : Math.round(eur)} €</div></div></div>`;
+}
 export default {
   id: 'travel', tab: 'travel',
   header() { return titleBar('Reise'); },
@@ -37,12 +46,14 @@ export default {
       <div class="chips">${chips.map(c => h`<button data-act="cat" data-cat="${c.id}" class="${t.cat === c.id ? 'on' : ''}">${c.l}</button>`)}</div>
       <div class="muted small" style="margin-bottom:6px">Antippen zeigt den Satz groß zum Vorzeigen.</div>
       <div id="travel-list">${list(ctx)}</div>
+      ${NUMBERS[lang.code] ? h`<h3 class="sec">Zahlen-Helfer</h3><div class="card"><label class="search" style="margin:0 0 10px"><span aria-hidden="true">🔢</span><input type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Zahl eingeben, z. B. 150000" value="${t.num || ''}" data-input="num" aria-label="Zahl"></label><div id="num-out">${numOut(ctx)}</div></div>` : ''}
       ${pron.length ? h`<details style="margin-top:16px"><summary>Lautschrift-Legende</summary><div class="body"><table class="pron">${pron}</table></div></details>` : ''}
       ${tones.length ? h`<details><summary>Die 6 Töne</summary><div class="body"><table class="pron">${tones}</table></div></details>` : ''}
     </div>`;
   },
   actions: {
     search(ctx, el) { ctx.travel.q = el.value; mount($('#travel-list'), list(ctx)); },
+    num(ctx, el) { ctx.travel.num = el.value; mount($('#num-out'), numOut(ctx)); },
     cat(ctx, el) { ctx.travel.cat = el.dataset.cat; ctx.render(); const inp = $('[data-input="search"]'); if (inp) inp.value = ctx.travel.q; },
     show(ctx, el, ev) {
       if (ev && ev.target.closest('[data-act="say"]')) return;

@@ -80,6 +80,7 @@ function finishFlow(ctx) {
   ctx.session = null; router.setGuard(null);
   ctx.sfx('done');
   router.go('done', { replace: true });
+  if (ctx.updateBadge) ctx.updateBadge();
 }
 function askQuit(ctx) {
   sheet.open(h`<h3>Session beenden?</h3><p>Bis hier ist gespeichert. Für die beantworteten Aufgaben gibt es ein paar XP, den Rest am Ende einer Session.</p><div class="stack"><button class="btn primary" data-act="stay">Weitermachen</button><button class="btn ghost" data-act="quit">Beenden</button></div>`, {

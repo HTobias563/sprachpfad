@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { setSeed, norm, todayStr, addDays } from '../src/core/text.js';
 import { PROFILES } from '../src/lang/registry.js';
 import { registry } from '../src/exercises/index.js';
-import { buildForLesson, buildReviewSession, buildDrill, buildWelcomeBack, buildQuickRound, buildListenOnly, makeCtx } from '../src/core/builders.js';
+import { buildForLesson, buildReviewSession, buildDrill, buildWelcomeBack, buildQuickRound, buildListenOnly, buildPriceDrill, makeCtx } from '../src/core/builders.js';
 import { reconcileLessons } from '../src/core/progress.js';
 import { createSession, current, record, advance, finish, abandon, snapshot, restore, progressPct } from '../src/core/session.js';
 import { defaultState, emptyLang } from '../src/core/migrations.js';
@@ -26,7 +26,7 @@ function checkContract(ex, lessonId) {
     ex.target.forEach(w => assert.ok(tw.includes(norm(w)), 'Kachel fehlt ' + w));
     assert.ok(ex.tiles.length > ex.target.length, 'keine Extra-Kacheln ' + ex.itemId);
   } else if (ex.type === 'script_listen') {
-    assert.ok(ex.options.length >= 2 && ex.answer < ex.options.length && ex.speak === ex.options[ex.answer]);
+    assert.ok(ex.options.length >= 2 && ex.answer < ex.options.length && (ex.speak === ex.options[ex.answer] || ex.plugin === 'prices'));
   } else if (ex.type === 'script_recognize') {
     assert.equal(ex.options.length, 4); assert.equal(new Set(ex.options).size, 4, 'Umschriften eindeutig ' + ex.glyph); assert.ok(ex.answer >= 0 && ex.answer < 4 && ex.glyph && ex.speak);
   } else if (ex.type === 'script_build') {
@@ -260,4 +260,12 @@ test('Kana: Training, Verwechselpaare, Sprechvergleich', () => {
   assert.equal(ja.speechMatch(ja.items['ja-eigo'], ['こんにちは']).correct, false);
   assert.deepEqual(ja.segments(ja.items['ja-kore-kudasai']), ['これ', 'を', 'ください']);
   assert.deepEqual(ja.segments(ja.items['ja-koko']), ['ここ']);
+});
+
+test('Preise hören für alle Sprachen', () => {
+  for (const q of Object.values(PROFILES)) {
+    const d = buildPriceDrill(q, emptyLang(), 10);
+    assert.equal(d.exercises.length, 10);
+    d.exercises.forEach(ex => { checkContract(ex, 'prices-' + q.code); assert.equal(ex.options.length, 4); assert.ok(ex.speak.length > 2); });
+  }
 });

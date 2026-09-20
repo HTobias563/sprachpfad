@@ -1,7 +1,7 @@
 // Einstieg: Zustand laden, Sprache wählen, Router starten, Ereignisse verdrahten
 import * as store from './core/store.js';
 import * as engine from './core/session.js';
-import { reconcileLessons } from './core/progress.js';
+import { reconcileLessons, dueItems } from './core/progress.js';
 import { profileFor } from './lang/registry.js';
 import * as router from './ui/router.js';
 import { toast } from './ui/toast.js';
@@ -42,6 +42,10 @@ const ctx = {
   speakAllowed() { return sr.usable(ctx.state.settings); },
   listenAllowed() { return tts.voiceState(ctx.lang) !== 'missing'; },
   showRoman() { return ctx.state.settings.showRoman !== false; },
+  async updateBadge() {
+    if (!ctx.state.flags.badge || typeof navigator === 'undefined' || !navigator.setAppBadge) return;
+    try { const due = dueItems(ctx.lang, ctx.ls).length; if (due) await navigator.setAppBadge(due); else await navigator.clearAppBadge(); } catch (e) { /* */ }
+  },
   resetSpeech() { sr.setBroken(false); },
   startSession(def, opts) {
     if (!def.exercises.length) { toast('Noch nichts zum Üben. Erst eine Lektion lernen.'); return; }
@@ -103,7 +107,7 @@ store.on('save-failed', why => {
   toast(why === 'broken' ? 'Gespeicherter Stand war beschädigt. Bitte Backup laden, falls vorhanden.' : 'Fortschritt konnte nicht gespeichert werden. Backup empfohlen.', 5000);
 });
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') { abortMic(ctx); tts.stop(); if (ctx.session) { ctx.state.pending = engine.snapshot(ctx.session); store.save(); } }
+  if (document.visibilityState === 'hidden') { abortMic(ctx); tts.stop(); if (ctx.session) { ctx.state.pending = engine.snapshot(ctx.session); store.save(); } ctx.updateBadge(); }
   else { tts.refreshVoices(); if (router.current() === 'home') router.render({ restoreScroll: true }); }
 });
 swc.onUpdate(() => { if (router.current() === 'home') router.render({ restoreScroll: true }); });
@@ -112,4 +116,5 @@ store.persist().then(ok => { if (ok && !ctx.state.flags.persisted) store.update(
 
 boot();
 router.init(app, ctx, ctx.state.onboardingDone ? 'home' : 'onboarding');
+ctx.updateBadge();
 window.__app = { ctx, router, store, boot: () => { boot(); router.go(ctx.state.onboardingDone ? 'home' : 'onboarding', { replace: true }); } };

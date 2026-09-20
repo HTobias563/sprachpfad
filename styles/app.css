@@ -251,3 +251,17 @@ body[data-screen="session"] #main>.sess{animation:slideup .25s cubic-bezier(.2,.
 .glyph{font-size:56px;font-weight:800;line-height:1.1;letter-spacing:.02em}
 .buildbox{display:flex;align-items:center;gap:16px;background:var(--card);border-radius:var(--radius);padding:12px 16px;box-shadow:var(--shadow);margin:14px 0}
 .buildbox .glyph{min-width:72px;text-align:center}
+
+/* Kalender, Können */
+.cal .wd{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:10px 0 4px}
+.cal .wd span{font-size:11px;color:var(--muted);text-align:center;font-weight:700}
+.cal .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal .grid i{display:grid;place-items:center;aspect-ratio:1;border-radius:10px;font-style:normal;font-size:13px;font-weight:700;background:var(--bg);color:var(--muted)}
+.cal .grid i.half{background:color-mix(in srgb,var(--ok) 35%,var(--bg));color:var(--text)}
+.cal .grid i.full{background:var(--ok);color:#fff}
+.cal .grid i.frozen{background:color-mix(in srgb,var(--primary) 18%,var(--bg));color:var(--primary)}
+.cal .grid i.future{opacity:.45}
+.cal .grid i.today{outline:2px solid var(--primary);outline-offset:-2px}
+.canrow{padding:6px 0;border-bottom:1px solid var(--line);font-weight:600}
+.canrow:last-child{border-bottom:0}
+.canrow.ok{color:var(--ok-text)}

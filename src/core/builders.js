@@ -1,5 +1,6 @@
 // Sessions zusammenstellen: Lektion, Wiederholung, Willkommen zurück, Plugin-Lektion, Kurztraining
-import { shuffle, pick, rand } from './text.js';
+import { shuffle, pick, rand, random } from './text.js';
+import { NUMBERS, CURRENCY, randomPrice, fmt } from '../lang/numbers.js';
 import { registry } from '../exercises/index.js';
 import { dueItems, learnedItems } from './progress.js';
 
@@ -127,4 +128,16 @@ export function buildListenOnly(profile, ls, opts) {
   const ctx = makeCtx(profile, ls);
   const items = shuffle(learnedItems(profile, ls)).slice(0, 8);
   return { kind: 'listen', lessonId: null, title: 'Nur hören', exercises: items.map(it => makeMixed('listen', it, ctx)), xp: 10 };
+}
+// Preise hören: Zahl in der Zielsprache hören, richtigen Betrag wählen
+export function buildPriceDrill(profile, ls, n) {
+  const code = profile.code; const gen = NUMBERS[code]; const cur = CURRENCY[code];
+  if (!gen) return { kind: 'prices', lessonId: null, title: 'Preise hören', exercises: [], xp: 10 };
+  const ex = [];
+  for (let i = 0; i < (n || 10); i++) {
+    const set = new Set(); let guard = 0; while (set.size < 4 && guard++ < 50) set.add(randomPrice(code, random));
+    const nums = shuffle(Array.from(set)); const answer = Math.floor(random() * nums.length); const w = gen(nums[answer]);
+    ex.push({ type: 'script_listen', plugin: 'prices', prompt: 'Welchen Preis hörst du?', options: nums.map(x => fmt(x) + ' ' + cur.sym), answer, speak: w.speak + ' ' + (cur.speakUnit || cur.unit), info: nums.map(x => { const g = gen(x); return { title: g.text + (g.reading ? ' · ' + g.reading : ''), desc: '' }; }) });
+  }
+  return { kind: 'prices', lessonId: null, title: 'Preise hören', exercises: ex, xp: 10 };
 }

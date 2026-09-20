@@ -1,7 +1,8 @@
 import { h } from '../dom.js';
 import { titleBar } from '../shell.js';
 import { dueItems, learnedItems } from '../../core/progress.js';
-import { buildReviewSession, buildQuickRound, buildListenOnly, buildDrill } from '../../core/builders.js';
+import { buildReviewSession, buildQuickRound, buildListenOnly, buildDrill, buildPriceDrill } from '../../core/builders.js';
+import { NUMBERS } from '../../lang/numbers.js';
 
 export default {
   id: 'practice', tab: 'practice',
@@ -19,12 +20,14 @@ export default {
       ${card('listen', '🎧', 'Nur hören', canListen ? '8 Wörter, nur mit den Ohren · ~2 Min' : 'Braucht eine Stimme für ' + lang.name, !learned || !canListen)}
       <h3 class="sec">Trainer</h3>
       ${plugins}
+      ${NUMBERS[lang.code] ? card('prices', '💴', 'Preise hören', canListen ? '10 Beträge hören und erkennen · ~2 Min' : 'Braucht eine Stimme für ' + lang.name, !canListen) : ''}
     </div>`;
   },
   actions: {
     review(ctx) { ctx.unlockAudio(); ctx.startSession(buildReviewSession(ctx.lang, ctx.ls, { allowSpeak: ctx.speakAllowed(), allowListen: ctx.listenAllowed() })); },
     quick(ctx) { ctx.unlockAudio(); ctx.startSession(buildQuickRound(ctx.lang, ctx.ls, { allowSpeak: ctx.speakAllowed(), allowListen: ctx.listenAllowed() })); },
     listen(ctx) { ctx.unlockAudio(); ctx.startSession(buildListenOnly(ctx.lang, ctx.ls, {})); },
-    drill(ctx, el) { ctx.unlockAudio(); const id = Object.keys(ctx.lang.plugins)[0]; ctx.startSession(buildDrill(ctx.lang, ctx.ls, id, 10)); }
+    drill(ctx, el) { ctx.unlockAudio(); const id = Object.keys(ctx.lang.plugins)[0]; ctx.startSession(buildDrill(ctx.lang, ctx.ls, id, 10)); },
+    prices(ctx) { ctx.unlockAudio(); ctx.startSession(buildPriceDrill(ctx.lang, ctx.ls, 10)); }
   }
 };

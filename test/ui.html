@@ -61,12 +61,13 @@ try {
   runSession('[data-act="quick"]', 'quick'); tab('practice'); runSession('[data-act="listen"]', 'listen'); tab('practice'); runSession('[data-act="drill"]', 'drill');
   // Reise
   tab('travel'); L('travel rows='+qa('.prow').length);
+  const numVi=q('[data-input="num"]'); numVi.value='150000'; numVi.dispatchEvent(new Event('input',{bubbles:true})); L('num helper vi='+(q('#num-out .mid')||{}).textContent);
   const inp=q('[data-input="search"]'); inp.value='toilette'; inp.dispatchEvent(new Event('input',{bubbles:true})); L('search rows='+qa('.prow').length);
   q('[data-act="cat"][data-cat="learned"]').click(); L('learned rows='+qa('.prow').length+' q kept='+(q('[data-input="search"]').value==='toilette'));
   q('[data-act="cat"][data-cat="all"]').click(); const inp2=q('[data-input="search"]'); inp2.value=''; inp2.dispatchEvent(new Event('input',{bubbles:true}));
   q('.prow').click(); L('showbig='+!!q('.showbig')); const sb=q('.showbig [data-act="close"]'); if(sb) sb.click(); L('showbig closed='+!q('.showbig'));
   // Profil
-  tab('profile'); L('profile kpis='+qa('.kpi').length+' bars='+qa('.bars .b').length);
+  tab('profile'); L('profile kpis='+qa('.kpi').length+' bars='+qa('.bars .b').length+' cal='+qa('.cal .grid i').length+' can='+qa('.canrow').length+' ics='+!!q('[data-act="ics"]'));
   q('[data-act="set-theme"][data-v="dark"]').click(); L('theme='+document.documentElement.dataset.theme); q('[data-act="set-theme"][data-v="auto"]').click();
   q('[data-act="lang-sheet"]').click(); L('lang sheet rows='+qa('.overlay .langrow').length); q('.overlay').click(); L('lang sheet closed='+!q('.overlay'));
   // Willkommen zurück
@@ -89,6 +90,8 @@ try {
   runSession('[data-act="start-lesson"][data-id="ja-u5l6"]', 'ja kanji');
   tab('practice'); runSession('[data-act="drill"]', 'kana drill');
   tab('travel'); L('ja travel rows='+qa('.prow').length+' reading='+qa('.prow .d [lang="ja"]').length);
+  const numIn=q('[data-input="num"]'); numIn.value='25000'; numIn.dispatchEvent(new Event('input',{bubbles:true})); L('num helper ja='+(q('#num-out .mid')||{}).textContent);
+  tab('practice'); runSession('[data-act="prices"]', 'prices ja');
   tab('home'); q('[data-act="lang-sheet"]').click(); q('.overlay [data-act="pick"][data-code="vi"]').click(); L('back to '+state().activeLang);
   const st=state(); L('state='+JSON.stringify({v:st.v,lessons:Object.keys(st.langs.vi.lessons),days:Object.keys(st.days),items:Object.keys(st.langs.vi.items).length,sessions:st.langs.vi.sessions.length,ko:st.langs.ko?Object.keys(st.langs.ko.lessons):null,pending:!!st.pending}));
 } catch(e){ L('EXCEPTION '+e.message+' '+(e.stack||'').split('\n').slice(0,2).join(' | ')); }
