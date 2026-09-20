@@ -12,7 +12,7 @@ import { roman } from '../parts.js';
 
 function def(ex) { return registry[ex.type]; }
 function itemFeedback(it, result, ctx) {
-  const t = h`<b lang="${ctx.lang.code}">${it.text}</b>${it.roman && ctx.showRoman() ? h` <span class="muted">${it.roman}</span>` : ''} · ${it.de}`;
+  const t = h`<b lang="${ctx.lang.code}">${it.text}</b>${it.reading && it.reading !== it.text ? h` <span class="muted" lang="${ctx.lang.code}">${it.reading}</span>` : ''}${it.roman && ctx.showRoman() ? h` <span class="muted">${it.roman}</span>` : ''} · ${it.de}`;
   if (result.correct) return h`<div class="h">✅ ${result.near ? `Fast! Achte auf die ${result.near}.` : 'Richtig!'}</div><div class="a">${t}</div>${it.hint ? h`<div class="n">Klingt wie: ${it.hint}</div>` : ''}`;
   return h`<div class="h">❌ Richtige Antwort:</div><div class="a">${t}</div><div class="n">${it.hint ? 'Klingt wie: ' + it.hint : ''}${it.note ? (it.hint ? ' · ' : '') + it.note : ''}</div>`;
 }

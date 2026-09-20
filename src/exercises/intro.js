@@ -1,5 +1,5 @@
 import { h } from '../ui/dom.js';
-import { spkBtn, slowBtn, target, roman } from '../ui/parts.js';
+import { spkBtn, slowBtn, target, sub as roman } from '../ui/parts.js';
 export default {
   type: 'intro', card: true,
   make(item) { return { type: 'intro', itemId: item.id }; },

@@ -63,8 +63,8 @@ export function buildLessonSession(profile, ls, lesson, opts) {
   }
   // Runde 1: jedes Wort einmal erkennen
   shuffle(items).forEach(it => ex.push(makeMixed(recognizeType(it, opts), it, ctx)));
-  // Runde 2: die Hälfte produzieren
-  pick(items, Math.ceil(items.length / 2)).forEach(it => ex.push(makeMixed(produceType(it, profile, opts, budget), it, ctx)));
+  // Runde 2: die Hälfte produzieren (Verstehen-Lektionen brauchen nur Runde 1)
+  if (lesson.type !== 'understand') pick(items, Math.ceil(items.length / 2)).forEach(it => ex.push(makeMixed(produceType(it, profile, opts, budget), it, ctx)));
   // Tonwort-Übung einstreuen
   if (opts.toneWords && profile.plugins.tones && profile.plugins.tones.sprinkle) { const e = profile.plugins.tones.sprinkle(ctx); if (e) ex.push(e); }
   // Fällige Wörter aus anderen Lektionen

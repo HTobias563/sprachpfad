@@ -82,7 +82,14 @@ try {
   L('roman shown='+!!q('.rom')+' setting='+state().settings.showRoman);
   tab('practice'); runSession('[data-act="drill"]', 'hangul drill');
   tab('travel'); L('ko travel rows='+qa('.prow').length);
-  q('[data-act="lang-sheet"]')||tab('home'); q('[data-act="lang-sheet"]').click(); q('.overlay [data-act="pick"][data-code="vi"]').click(); L('back to '+state().activeLang);
+  // Japanisch
+  tab('home'); q('[data-act="lang-sheet"]').click(); q('.overlay [data-act="pick"][data-code="ja"]').click(); L('switched lang='+state().activeLang);
+  runSession('[data-act="start-lesson"][data-id="ja-u1l1"]', 'kana H1');
+  runSession('[data-act="start-lesson"][data-id="ja-u1l2"]', 'ja lesson');
+  runSession('[data-act="start-lesson"][data-id="ja-u5l6"]', 'ja kanji');
+  tab('practice'); runSession('[data-act="drill"]', 'kana drill');
+  tab('travel'); L('ja travel rows='+qa('.prow').length+' reading='+qa('.prow .d [lang="ja"]').length);
+  tab('home'); q('[data-act="lang-sheet"]').click(); q('.overlay [data-act="pick"][data-code="vi"]').click(); L('back to '+state().activeLang);
   const st=state(); L('state='+JSON.stringify({v:st.v,lessons:Object.keys(st.langs.vi.lessons),days:Object.keys(st.days),items:Object.keys(st.langs.vi.items).length,sessions:st.langs.vi.sessions.length,ko:st.langs.ko?Object.keys(st.langs.ko.lessons):null,pending:!!st.pending}));
 } catch(e){ L('EXCEPTION '+e.message+' '+(e.stack||'').split('\n').slice(0,2).join(' | ')); }
 L('errors='+JSON.stringify(window.__errors));

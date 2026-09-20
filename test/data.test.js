@@ -12,9 +12,10 @@ for (const p of Object.values(PROFILES)) {
       assert.ok(typeof it.text === 'string' && it.text.trim(), 'text fehlt bei ' + it.id);
       assert.ok(typeof it.de === 'string' && it.de.trim(), 'de fehlt bei ' + it.id);
       assert.equal(it.text, it.text.normalize('NFC'), 'nicht NFC: ' + it.id);
-      assert.ok(it.hint, 'hint fehlt bei ' + it.id);
+      if (p.code !== 'ja') assert.ok(it.hint, 'hint fehlt bei ' + it.id);
       if (p.code === 'ko') { assert.match(it.text, /^[가-힣0-9\s?!.,]+$/, 'kein Hangul: ' + it.id); assert.ok(it.roman, 'roman fehlt bei ' + it.id); }
-      if (it.seg) assert.equal(it.seg.join(''), it.text.replace(/\s+/g, ''), 'seg passt nicht zu text: ' + it.id);
+      if (it.seg) assert.equal(it.seg.join('').replace(/[\s?？!！。、.,]/g, ''), it.text.replace(/[\s?？!！。、.,]/g, ''), 'seg passt nicht zu text: ' + it.id);
+      if (p.code === 'ja') { assert.ok(it.roman, 'roman fehlt bei ' + it.id); if (/[\u4e00-\u9faf]/.test(it.text)) assert.ok(it.reading && /^[\u3040-\u30ff]+$/.test(it.reading.replace(/[\s?？]/g, '')), 'Lesung fehlt oder ist nicht Kana: ' + it.id); }
     }
   });
   test(`Sprachpaket ${p.code}: Lektionen und Einheiten`, () => {

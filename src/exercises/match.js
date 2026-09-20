@@ -1,7 +1,7 @@
 // Zuordnung: Paare Zielsprache ↔ Deutsch. Fehlgriffe zählen für die betroffenen Wörter, die Übung wird nicht wiederholt.
 import { h } from '../ui/dom.js';
 import { shuffle } from '../core/text.js';
-import { roman } from '../ui/parts.js';
+import { sub as roman } from '../ui/parts.js';
 
 export default {
   type: 'match', multi: true,

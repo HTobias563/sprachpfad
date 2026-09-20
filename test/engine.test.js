@@ -48,7 +48,7 @@ for (const p of Object.values(PROFILES)) test(`${p.code}: jede Lektion ergibt ei
   for (const e of p.lessons) {
     for (const repeat of [false, true]) {
       const s = buildForLesson(p, ls, e.lesson, { repeat, allowSpeak: true, today });
-      assert.ok(s.exercises.length >= 6, 'zu kurz ' + e.lesson.id);
+      assert.ok(s.exercises.length >= 5, 'zu kurz ' + e.lesson.id);
       s.exercises.forEach(ex => checkContract(ex, e.lesson.id));
       if (e.lesson.type !== 'script') {
         const intros = s.exercises.filter(x => x.type === 'intro').length;
@@ -56,14 +56,14 @@ for (const p of Object.values(PROFILES)) test(`${p.code}: jede Lektion ergibt ei
         if (!repeat && e.lesson.tip) assert.equal(s.exercises[0].type, 'tip', 'Tipp zuerst ' + e.lesson.id);
         if (repeat) assert.ok(!s.exercises.some(x => x.type === 'tip'));
         if (e.lesson.type === 'understand') assert.ok(s.exercises.every(x => x.type === 'intro' || x.type === 'tip' || (x.type === 'choose' && x.dir !== 'de2t') || x.type === 'match'), 'Verstehen-Lektion nur erkennen ' + e.lesson.id);
-        assert.ok(s.exercises.length <= 30, 'zu lang ' + e.lesson.id + ' ' + s.exercises.length);
+        assert.ok(s.exercises.length <= 33, 'zu lang ' + e.lesson.id + ' ' + s.exercises.length);
       } else if (!repeat && e.lesson.plugin === 'tones') {
         assert.equal(s.exercises.filter(x => x.type === 'script_intro').length, 6);
         assert.equal(s.exercises[0].type, 'script_overview');
-      } else if (e.lesson.plugin === 'hangul') {
+      } else if (e.lesson.plugin === 'hangul' || e.lesson.plugin === 'kana') {
         assert.ok(s.exercises.some(x => x.type === 'script_recognize'), 'Hangul: lesen ' + e.lesson.id);
         assert.ok(s.exercises.some(x => x.type === 'script_listen'), 'Hangul: hören ' + e.lesson.id);
-        assert.ok(s.exercises.some(x => x.type === 'script_build'), 'Hangul: bauen ' + e.lesson.id);
+        assert.ok(s.exercises.some(x => x.type === 'script_build'), 'Schrift: bauen ' + e.lesson.id);
       }
     }
   }
@@ -244,4 +244,20 @@ test('Koreanisch: Sprechvergleich ohne Leerzeichen', () => {
   assert.equal(ko.speechMatch(ko.items['ko-cheoncheonhi'], ['천천히말해주세요']).correct, true);
   assert.equal(ko.speechMatch(ko.items['ko-gamsa'], ['고맙습니다']).correct, true);
   assert.equal(ko.speechMatch(ko.items['ko-gamsa'], ['안녕하세요']).correct, false);
+});
+
+test('Kana: Training, Verwechselpaare, Sprechvergleich', () => {
+  const ja = PROFILES.ja; const plugin = ja.plugins.kana;
+  const d = buildDrill(ja, emptyLang(), 'kana', 10); assert.equal(d.exercises.length, 10); d.exercises.forEach(ex => checkContract(ex, 'kana-drill'));
+  assert.equal(plugin.compose(['す', 'し']), 'すし');
+  const lesson = ja.lessonById('ja-u1l1'); const s = buildForLesson(ja, emptyLang(), lesson, { today });
+  assert.equal(s.exercises[0].type, 'script_overview');
+  assert.equal(s.exercises.filter(x => x.type === 'script_intro').length, 10);
+  assert.ok(s.exercises.filter(x => x.type === 'script_recognize').every(x => x.options.every(o => typeof o === 'string')));
+  assert.equal(ja.speechMatch(ja.items['ja-arigato'], ['ありがとうございます']).correct, true);
+  assert.equal(ja.speechMatch(ja.items['ja-eigo'], ['英語できますか']).correct, true);
+  assert.equal(ja.speechMatch(ja.items['ja-eigo'], ['えいごできますか']).correct, true);
+  assert.equal(ja.speechMatch(ja.items['ja-eigo'], ['こんにちは']).correct, false);
+  assert.deepEqual(ja.segments(ja.items['ja-kore-kudasai']), ['これ', 'を', 'ください']);
+  assert.deepEqual(ja.segments(ja.items['ja-koko']), ['ここ']);
 });

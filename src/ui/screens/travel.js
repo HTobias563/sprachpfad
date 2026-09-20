@@ -21,7 +21,7 @@ function list(ctx) {
   if (!items.length) return h`<div class="muted" style="padding:20px 0;text-align:center">Nichts gefunden.</div>`;
   const byUnit = new Map();
   items.forEach(it => { if (!byUnit.has(it.unitId)) byUnit.set(it.unitId, []); byUnit.get(it.unitId).push(it); });
-  return lang.data.units.filter(u => byUnit.has(u.id)).map(u => h`<h3 class="sec">${u.title}</h3><div class="card">${byUnit.get(u.id).map(it => h`<button class="prow" data-act="show" data-id="${it.id}"><span class="st ${itemStatus(ls.items[it.id])}" title="${itemStatus(ls.items[it.id])}"></span><div class="w"><div class="t" lang="${lang.code}">${it.text}</div><div class="d">${it.roman ? h`${it.roman} · ` : ''}${it.de}${it.hint ? h` · <i>${it.hint}</i>` : ''}</div></div><span class="spk small" data-act="say" data-text="${lang.speakText(it)}" role="button" aria-label="Anhören">${raw(icon('speaker'))}</span></button>`)}</div>`);
+  return lang.data.units.filter(u => byUnit.has(u.id)).map(u => h`<h3 class="sec">${u.title}</h3><div class="card">${byUnit.get(u.id).map(it => h`<button class="prow" data-act="show" data-id="${it.id}"><span class="st ${itemStatus(ls.items[it.id])}" title="${itemStatus(ls.items[it.id])}"></span><div class="w"><div class="t" lang="${lang.code}">${it.text}</div><div class="d">${it.reading && it.reading !== it.text ? h`<span lang="${lang.code}">${it.reading}</span> · ` : ''}${it.roman ? h`${it.roman} · ` : ''}${it.de}${it.hint ? h` · <i>${it.hint}</i>` : ''}</div></div><span class="spk small" data-act="say" data-text="${lang.speakText(it)}" role="button" aria-label="Anhören">${raw(icon('speaker'))}</span></button>`)}</div>`);
 }
 export default {
   id: 'travel', tab: 'travel',
@@ -49,7 +49,7 @@ export default {
       const it = ctx.item(el.dataset.id); if (!it) return;
       ctx.unlockAudio();
       const host = document.createElement('div'); host.className = 'showbig fade';
-      host.innerHTML = String(h`<button class="x" data-act="close" aria-label="Schließen">${raw(icon('close'))}</button><div class="t" lang="${ctx.lang.code}">${it.text}</div>${it.roman ? h`<div class="hnt">${it.roman}</div>` : ''}<div class="d">${it.de}</div>${it.hint ? h`<div class="hnt">Klingt wie: ${it.hint}</div>` : ''}<button class="spk" data-act="say" aria-label="Anhören">${raw(icon('speaker'))}</button>`);
+      host.innerHTML = String(h`<button class="x" data-act="close" aria-label="Schließen">${raw(icon('close'))}</button><div class="t" lang="${ctx.lang.code}">${it.text}</div>${it.reading && it.reading !== it.text ? h`<div class="hnt" lang="${ctx.lang.code}">${it.reading}</div>` : ''}${it.roman ? h`<div class="hnt">${it.roman}</div>` : ''}<div class="d">${it.de}</div>${it.hint ? h`<div class="hnt">Klingt wie: ${it.hint}</div>` : ''}<button class="spk" data-act="say" aria-label="Anhören">${raw(icon('speaker'))}</button>`);
       host.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; if (b.dataset.act === 'close') host.remove(); else ctx.speak(ctx.lang.speakText(it)); });
       document.body.appendChild(host);
       ctx.speak(ctx.lang.speakText(it));

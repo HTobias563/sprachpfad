@@ -1,7 +1,7 @@
 // Auswahl aus vier Optionen. dir: 't2de' (Zielsprache → Deutsch), 'de2t' (Deutsch → Zielsprache), 'listen' (Audio → Zielsprache)
 import { h } from '../ui/dom.js';
 import { shuffle, norm } from '../core/text.js';
-import { spkBtn, slowBtn, target, roman } from '../ui/parts.js';
+import { spkBtn, slowBtn, target, sub as roman } from '../ui/parts.js';
 
 export function distractors(item, n, field, lang) {
   const seen = new Set([norm(item[field])]);
