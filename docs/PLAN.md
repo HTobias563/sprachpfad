@@ -1,6 +1,8 @@
 # Sprachpfad – Ausbauplan zur Drei-Sprachen-App
 
-Stand: 2026-09-20. Grundlage: vier unabhängige Reviews (Didaktik, Produkt/UX, Architektur, Vietnamesisch-Inhalte) der aktuellen Version, zusammengeführt und gegengelesen. Noch nichts davon ist umgesetzt.
+Stand: 2026-09-20. Grundlage: vier unabhängige Reviews (Didaktik, Produkt/UX, Architektur, Vietnamesisch-Inhalte) der ersten Version, zusammengeführt und gegengelesen.
+
+**Umsetzungsstand (2026-09-20 abends):** Phasen 1 bis 7 sind veröffentlicht. Nicht gebaut: Szenen-Dialoge (Dialog-Hörverstehen) und die Reisedatum-Einstellung. Offen für später: Muttersprachler-Prüfung der koreanischen und japanischen Inhalte, Test auf dem echten iPhone (Übergänge, Mikrofon, Badge).
 
 ## 1. Ziel
 

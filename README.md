@@ -2,7 +2,7 @@
 
 Eigene Lern-App für Urlaubssprachen, gebaut wie Duolingo: Lernpfad, kurze Sessions, Wiederholung nach fester Leiter (1, 3, 7, 14, 30 Tage), Serie. Läuft als Web-App auf dem Handy, komplett offline, ohne Account, ohne Build-Tool.
 
-Aktuell: Vietnamesisch (146 Wörter und Sätze in 19 Lektionen, Ton-Trainer). Koreanisch und Japanisch folgen, siehe [docs/PLAN.md](docs/PLAN.md).
+Drei Sprachen: Vietnamesisch (190 Einträge, Ton-Trainer), Koreanisch (157 Einträge, Hangul-Trainer), Japanisch (164 Einträge, Kana-Trainer, Kanji-Schilder). Vier Tabs: Lernen, Üben, Reise, Profil. Ausbauplan und Stand in [docs/PLAN.md](docs/PLAN.md).
 
 ## Benutzen
 
@@ -21,13 +21,14 @@ Sprachausgabe nutzt die Systemstimme (iPhone: Einstellungen › Bedienungshilfen
 - `src/lang/` – Sprachprofile (Stimme, Normalisierung, Segmente, Sprechvergleich) und Plugins wie der Ton-Trainer
 - `src/ui/` – Template-Funktion mit Auto-Escaping, Router mit Verlauf, Sheets, Toasts, Screens
 - `src/platform/` – Sprachausgabe, Spracherkennung, Töne, Service-Worker-Client
-- `data/vi.js` – Inhalte Vietnamesisch (reine Daten)
+- `data/vi.js`, `data/ko.js`, `data/ja.js` – Kursinhalte (reine Daten), `data/hangul.js`, `data/kana.js` – Schrifttabellen
+- `src/lang/numbers.js` – Zahlen in Worte für Zahlen-Helfer und Preise-hören
 - `sw.js` – Offline-Cache, Dateiliste wird von `tools/sw-assets.js` erzeugt
 - `test/` – Node-Tests (`npm test`) und Chrome-Klicktest (`sh test/ui.sh`)
 
 ## Ändern und veröffentlichen
 
-Inhalte in `data/vi.js` anpassen, dann:
+Inhalte in `data/<sprache>.js` anpassen, dann:
 
 ```
 ./deploy.sh "Was sich geändert hat"
