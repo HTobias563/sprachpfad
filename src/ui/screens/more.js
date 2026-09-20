@@ -32,7 +32,7 @@ export default {
         <div class="setrow"><div><div class="l">Sprachausgabe</div><div class="d">${voiceInfo}</div></div><button class="spk small" data-act="say-test" aria-label="Testen">🔊</button></div>
       </div>
       <div class="stack" style="margin-bottom:14px">${plugins}</div>
-      ${pron.length ? h`<details><summary>Aussprache-Spickzettel</summary><div class="body"><table class="pron">${pron}</table></div></details>` : ''}
+      ${pron.length ? h`<details><summary>Lautschrift-Legende</summary><div class="body"><table class="pron">${pron}</table></div></details>` : ''}
       ${tonesRows.length ? h`<details><summary>Die 6 Töne</summary><div class="body"><table class="pron">${tonesRows}</table></div></details>` : ''}
       <details><summary>Backup</summary><div class="body stack">
         <div class="muted small">Der Fortschritt liegt nur auf diesem Gerät. Mit einem Backup kannst du ihn auf ein anderes Handy mitnehmen.${s.flags.persisted ? ' Speicher ist als dauerhaft markiert.' : ''}</div>

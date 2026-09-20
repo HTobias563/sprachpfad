@@ -5,7 +5,7 @@ export default {
   make(item) { return { type: 'intro', itemId: item.id }; },
   render(ex, ui, ctx) {
     const it = ctx.item(ex.itemId);
-    return h`<h2 class="qtitle">Neues Wort</h2><div class="intro">
+    return h`<h2 class="qtitle">${it.understand ? 'Zum Verstehen' : 'Neues Wort'}</h2><div class="intro">
       <div class="row">${spkBtn(ctx.lang.speakText(it))}${target(it.text, ctx.lang, 'big')}</div>
       <div class="mid">${it.de}</div>
       ${it.hint ? h`<div class="hint">Klingt wie: <b>${it.hint}</b></div>` : ''}

@@ -17,11 +17,16 @@ export function progressPct(s) {
 export function record(s, ex, result, ctx) {
   s.answered++;
   if (result.correct) s.correct++; else s.anyWrong = true;
-  if (ex.itemId) {
+  if (result.perItem) {
+    Object.entries(result.perItem).forEach(([id, wrong]) => {
+      const r = s.results[id] || (s.results[id] = { wrong: 0, seen: 0 });
+      r.seen++; if (wrong) { r.wrong++; s.anyWrong = true; }
+    });
+  } else if (ex.itemId) {
     const r = s.results[ex.itemId] || (s.results[ex.itemId] = { wrong: 0, seen: 0 });
     r.seen++; if (!result.correct) r.wrong++;
   }
-  if (!result.correct && !result.noRequeue) {
+  if (!result.correct && !result.noRequeue && !s.def.noRequeue) {
     const key = ex.itemId || ex.type;
     const fails = (s.fails[key] = (s.fails[key] || 0) + 1);
     if (fails <= 3) {
@@ -59,7 +64,7 @@ export function finish(s, state, ls, today) {
 // Abbruch: beantwortete Wörter werden trotzdem bewertet, XP gibt es nicht
 export function abandon(s, state, ls, today) { applyResults(s, ls, today); state.pending = null; }
 export function snapshot(s) {
-  return { lang: s.lang, startedAt: s.startedAt, savedAt: Date.now(), def: { kind: s.def.kind, lessonId: s.def.lessonId, plugin: s.def.plugin || null, title: s.def.title, xp: s.def.xp }, queue: s.queue, idx: s.idx, results: s.results, fails: s.fails, correct: s.correct, answered: s.answered, anyWrong: s.anyWrong, maxPct: s.maxPct || 0 };
+  return { lang: s.lang, startedAt: s.startedAt, savedAt: Date.now(), def: { kind: s.def.kind, lessonId: s.def.lessonId, plugin: s.def.plugin || null, title: s.def.title, xp: s.def.xp, noRequeue: !!s.def.noRequeue }, queue: s.queue, idx: s.idx, results: s.results, fails: s.fails, correct: s.correct, answered: s.answered, anyWrong: s.anyWrong, maxPct: s.maxPct || 0 };
 }
 export function restore(snap) {
   return { lang: snap.lang, def: Object.assign({}, snap.def, { exercises: snap.queue }), queue: snap.queue.slice(), idx: snap.idx, results: snap.results || {}, fails: snap.fails || {}, correct: snap.correct || 0, answered: snap.answered || 0, anyWrong: !!snap.anyWrong, ui: {}, startedAt: snap.startedAt || Date.now(), maxPct: snap.maxPct || 0 };

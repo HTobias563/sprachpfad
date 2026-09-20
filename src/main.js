@@ -8,7 +8,8 @@ import { toast } from './ui/toast.js';
 import home from './ui/screens/home.js';
 import words from './ui/screens/words.js';
 import more, { applyTheme } from './ui/screens/more.js';
-import session, { rerender, startMic, makeGuard, abortMic } from './ui/screens/session.js';
+import session, { rerender, startMic, makeGuard, abortMic, answer } from './ui/screens/session.js';
+import { reconcileLessons } from './core/progress.js';
 import done from './ui/screens/done.js';
 import * as tts from './platform/tts.js';
 import * as sr from './platform/sr.js';
@@ -29,6 +30,7 @@ const ctx = {
   update(fn) { store.update(fn); },
   render() { router.render(); },
   rerender() { rerender(ctx); },
+  answer(result) { answer(ctx, result); },
   startMic() { startMic(ctx); },
   speak(text, slow) { tts.speak(text, ctx.lang, { slow }); },
   sfx(kind) { sfx.play(kind, ctx.state.settings.sound); },
@@ -53,13 +55,14 @@ const ctx = {
     engine.abandon(engine.restore(p), ctx.state, store.langState(p.lang)); store.save();
     router.render();
   },
-  afterStateReplaced() { ctx.session = null; ctx.resumeAsked = false; applyTheme(ctx.state.settings.theme); }
+  afterStateReplaced() { ctx.session = null; ctx.resumeAsked = false; applyTheme(ctx.state.settings.theme); if (reconcileLessons(ctx.lang, ctx.ls)) store.save(); }
 };
 
 function boot() {
   store.load();
   applyTheme(ctx.state.settings.theme);
   ctx.session = null; ctx.resumeAsked = false; router.setGuard(null);
+  if (reconcileLessons(ctx.lang, ctx.ls)) store.save();
   // Alte, liegengebliebene Session stillschweigend verrechnen
   const p = ctx.state.pending;
   if (p && (Date.now() - (p.savedAt || 0) > 12 * 3600 * 1000 || !p.queue)) { try { engine.abandon(engine.restore(p), ctx.state, store.langState(p.lang)); } catch (e) { ctx.state.pending = null; } store.save(); }

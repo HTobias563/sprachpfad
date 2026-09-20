@@ -1,26 +1,42 @@
-// Sessions zusammenstellen: Lektion, Wiederholung, Plugin-Lektion, Kurztraining
+// Sessions zusammenstellen: Lektion, Wiederholung, Willkommen zurück, Plugin-Lektion, Kurztraining
 import { shuffle, pick, rand } from './text.js';
 import { registry } from '../exercises/index.js';
 import { dueItems, learnedItems } from './progress.js';
 
-function mixedTypes(item, lang, opts) {
-  const t = ['choose_t', 'choose_de'];
-  if (opts.allowListen !== false) t.push('listen');
-  if (registry.tiles.canMake(item, lang)) t.push('tiles', 'tiles');
-  if (opts.speakNow) t.push('speak');
-  return t;
-}
+export function makeCtx(profile, ls) { return { lang: profile, ls, item: id => profile.items[id] }; }
 export function makeMixed(t, item, ctx) {
   switch (t) {
     case 'listen': return registry.choose.make(item, ctx, { dir: 'listen' });
     case 'choose_t': return registry.choose.make(item, ctx, { dir: 'de2t' });
     case 'choose_de': return registry.choose.make(item, ctx, { dir: 't2de' });
     case 'tiles': return registry.tiles.canMake(item, ctx.lang) ? registry.tiles.make(item, ctx) : registry.choose.make(item, ctx, { dir: 'de2t' });
+    case 'cloze': return registry.cloze.canMake(item, ctx.lang) ? registry.cloze.make(item, ctx) : registry.choose.make(item, ctx, { dir: 'de2t' });
     case 'speak': return registry.speak.make(item);
   }
   return registry.choose.make(item, ctx, { dir: 't2de' });
 }
-export function makeCtx(profile, ls) { return { lang: profile, ls, item: id => profile.items[id] }; }
+// Erkennen (Runde 1) und Produzieren (Runde 2)
+function recognizeType(item, opts) { return opts.allowListen !== false && rand([true, false]) ? 'listen' : (item.understand ? 'choose_de' : 'choose_t'); }
+function produceType(item, lang, opts, budget) {
+  if (item.understand) return opts.allowListen !== false ? 'listen' : 'choose_de';
+  const t = [];
+  if (registry.tiles.canMake(item, lang)) t.push('tiles', 'tiles');
+  if (registry.cloze.canMake(item, lang)) t.push('cloze');
+  if (opts.allowSpeak && budget.speak > 0) t.push('speak');
+  if (!t.length) t.push('choose_t');
+  const c = rand(t); if (c === 'speak') budget.speak--;
+  return c;
+}
+function mixedType(item, lang, opts, budget) {
+  if (item.understand) return opts.allowListen !== false ? rand(['listen', 'choose_de']) : 'choose_de';
+  const t = ['choose_t', 'choose_de'];
+  if (opts.allowListen !== false) t.push('listen');
+  if (registry.tiles.canMake(item, lang)) t.push('tiles', 'tiles');
+  if (registry.cloze.canMake(item, lang)) t.push('cloze');
+  if (opts.allowSpeak && budget.speak > 0) t.push('speak');
+  const c = rand(t); if (c === 'speak') budget.speak--;
+  return c;
+}
 
 export function buildLessonSession(profile, ls, lesson, opts) {
   opts = opts || {};
@@ -28,25 +44,31 @@ export function buildLessonSession(profile, ls, lesson, opts) {
   const items = shuffle(profile.itemsOf(lesson.id));
   const ex = [];
   const repeat = !!opts.repeat;
+  const budget = { speak: 2 };
+  const due = shuffle(dueItems(profile, ls, opts.today).filter(d => d.lessonId !== lesson.id));
   if (!repeat) {
+    if (lesson.tip) ex.push({ type: 'tip', title: lesson.title, text: lesson.tip });
+    // Aufwärmen mit fälligen Wörtern
+    const warm = due.splice(0, Math.min(5, due.length));
+    if (warm.length >= 3) ex.push(registry.match.make(warm, ctx));
+    else warm.forEach(it => ex.push(makeMixed('choose_de', it, ctx)));
+    // Neue Wörter in Dreierblöcken: erst sehen, dann erkennen
     for (let i = 0; i < items.length; i += 3) {
       const chunk = items.slice(i, i + 3);
       chunk.forEach(it => ex.push(registry.intro.make(it)));
-      shuffle(chunk).forEach(it => ex.push(registry.choose.make(it, ctx, { dir: 't2de' })));
+      shuffle(chunk).forEach(it => ex.push(makeMixed('choose_de', it, ctx)));
     }
+  } else if (items.length >= 4) {
+    ex.push(registry.match.make(pick(items, Math.min(5, items.length)), ctx));
   }
-  const mixedCount = repeat ? items.length : Math.max(4, Math.ceil(items.length * 0.75));
-  let speakUsed = 0;
-  pick(items, mixedCount).forEach(it => {
-    const t = rand(mixedTypes(it, profile, { allowListen: opts.allowListen, speakNow: opts.allowSpeak && speakUsed < 2 }));
-    if (t === 'speak') speakUsed++;
-    ex.push(makeMixed(t, it, ctx));
-  });
-  if (repeat) {
-    pick(items, Math.min(4, items.length)).forEach(it => ex.push(makeMixed(rand(opts.allowListen === false ? ['tiles', 'choose_de'] : ['listen', 'tiles', 'choose_de']), it, ctx)));
-  } else {
-    pick(dueItems(profile, ls, opts.today).filter(d => d.lessonId !== lesson.id), 3).forEach(it => ex.push(makeMixed(rand(opts.allowListen === false ? ['choose_t', 'choose_de'] : ['listen', 'choose_t', 'choose_de']), it, ctx)));
-  }
+  // Runde 1: jedes Wort einmal erkennen
+  shuffle(items).forEach(it => ex.push(makeMixed(recognizeType(it, opts), it, ctx)));
+  // Runde 2: die Hälfte produzieren
+  pick(items, Math.ceil(items.length / 2)).forEach(it => ex.push(makeMixed(produceType(it, profile, opts, budget), it, ctx)));
+  // Tonwort-Übung einstreuen
+  if (opts.toneWords && profile.plugins.tones && profile.plugins.tones.sprinkle) { const e = profile.plugins.tones.sprinkle(ctx); if (e) ex.push(e); }
+  // Fällige Wörter aus anderen Lektionen
+  due.splice(0, repeat ? 2 : 3).forEach(it => ex.push(makeMixed(mixedType(it, profile, { allowListen: opts.allowListen, allowSpeak: false }, budget), it, ctx)));
   return { kind: repeat ? 'repeat' : 'lesson', lessonId: lesson.id, title: lesson.title, exercises: ex, xp: 10 };
 }
 export function buildReviewSession(profile, ls, opts) {
@@ -58,13 +80,21 @@ export function buildReviewSession(profile, ls, opts) {
     items = items.concat(rest.slice(0, 6 - items.length));
   }
   items = items.slice(0, 12);
-  let speakUsed = 0;
-  const ex = items.map(it => {
-    const t = rand(mixedTypes(it, profile, { allowListen: opts.allowListen, speakNow: opts.allowSpeak && speakUsed < 3 }));
-    if (t === 'speak') speakUsed++;
-    return makeMixed(t, it, ctx);
-  });
-  return { kind: 'review', lessonId: null, title: 'Wiederholung', exercises: shuffle(ex), xp: 10 };
+  const ex = [];
+  const budget = { speak: 3 };
+  if (items.length >= 5) { ex.push(registry.match.make(items.slice(0, 5), ctx)); items = items.slice(5); }
+  shuffle(items).forEach(it => ex.push(makeMixed(mixedType(it, profile, opts, budget), it, ctx)));
+  return { kind: 'review', lessonId: null, title: 'Wiederholung', exercises: ex, xp: 10 };
+}
+// Nach längerer Pause: nur erkennen, keine neuen Wörter, keine Fehlerwiederholung
+export function buildWelcomeBack(profile, ls, opts) {
+  opts = opts || {};
+  const ctx = makeCtx(profile, ls);
+  const items = learnedItems(profile, ls).sort((a, b) => ls.items[a.id].due.localeCompare(ls.items[b.id].due)).slice(0, 8);
+  const ex = [];
+  if (items.length >= 5) ex.push(registry.match.make(items.slice(0, 5), ctx));
+  items.slice(items.length >= 5 ? 5 : 0).forEach(it => ex.push(makeMixed(opts.allowListen !== false && rand([true, false]) ? 'listen' : 'choose_de', it, ctx)));
+  return { kind: 'welcome', lessonId: null, title: 'Willkommen zurück', exercises: ex, xp: 10, noRequeue: true };
 }
 export function buildPluginSession(profile, ls, lesson, opts) {
   opts = opts || {};

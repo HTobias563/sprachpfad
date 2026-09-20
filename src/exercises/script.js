@@ -36,7 +36,8 @@ export const script_listen = {
       else if (i === ui.sel) cls = 'sel';
       return h`<button class="opt ${cls}" lang="${code}" data-act="opt" data-i="${i}" ${fb ? 'disabled' : ''}>${o}</button>`;
     });
-    return h`<h2 class="qtitle">${ex.prompt}</h2><div class="row" style="margin-bottom:18px">${spkBtn(ex.speak)}${slowBtn(ex.speak)}</div><div class="grid6">${opts}</div>`;
+    const cols = Math.min(3, ex.options.length);
+    return h`<h2 class="qtitle">${ex.prompt}</h2><div class="row" style="margin-bottom:18px">${spkBtn(ex.speak)}${slowBtn(ex.speak)}</div><div class="grid6" style="grid-template-columns:repeat(${cols},1fr)">${opts}</div>`;
   },
   ready: (ex, ui) => ui.sel !== undefined,
   actions: { opt(ex, ui, ctx, el) { if (ui.fb) return; ui.sel = Number(el.dataset.i); ctx.rerender(); } },
@@ -46,7 +47,7 @@ export const script_listen = {
   speakOnFeedback(ex, result) { return result.correct ? null : ex.speak; },
   feedback(ex, result) {
     const info = ex.info && ex.info[ex.answer]; const glyph = ex.options[ex.answer];
-    if (result.correct) return h`<div class="h">✅ Richtig!</div><div class="a"><b>${glyph}</b>${info ? h` · ${info.name}, ${info.label.toLowerCase()}` : ''}</div>`;
-    return h`<div class="h">❌ Das war <b>${glyph}</b></div>${info ? h`<div class="a">${info.name}: ${info.desc}</div>` : ''}`;
+    if (result.correct) return h`<div class="h">✅ Richtig!</div><div class="a"><b>${glyph}</b>${info && info.title ? h` · ${info.title}` : ''}</div>`;
+    return h`<div class="h">❌ Das war <b>${glyph}</b>${info && info.title ? h` · ${info.title}` : ''}</div>${info && info.desc ? h`<div class="a">${info.desc}</div>` : ''}`;
   }
 };

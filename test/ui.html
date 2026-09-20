@@ -15,6 +15,7 @@ function runSteps(max, label){
     const title=q('.qtitle')?q('.qtitle').textContent.replace(/\d+ von 6: .*/,'N von 6'):'?'; types[title]=(types[title]||0)+1;
     if(q('#ex-bottom [data-act="next"]')) q('#ex-bottom [data-act="next"]').click();
     else if(q('[data-act="skip"]')) q('[data-act="skip"]').click();
+    else if(q('[data-act="pair"]:not([disabled])')) { const l=q('[data-act="pair"][data-side="l"]:not([disabled])'); l.click(); const r=q('[data-act="pair"][data-side="r"][data-id="'+l.dataset.id+'"]'); if(steps%4===0){ const wrong=qa('[data-act="pair"][data-side="r"]:not([disabled])').find(b=>b.dataset.id!==l.dataset.id); (wrong||r).click(); } else r.click(); }
     else if(q('[data-act="tile"]')) { const free=qa('[data-act="tile"]:not(.used)'); const chk=q('[data-act="check"]:not([disabled])'); if(free.length && (!chk || steps%3)) free[0].click(); else chk.click(); }
     else if(q('[data-act="opt"]')) { const chk=q('[data-act="check"]:not([disabled])'); if(!chk){ const o=qa('[data-act="opt"]'); o[Math.floor(Math.random()*o.length)].click(); } else chk.click(); }
     else return {steps,types,end:'STUCK on '+title};
@@ -48,6 +49,11 @@ try {
   q('[data-act="tab"][data-tab="words"]').click(); L('words rows='+qa('.wrow').length);
   q('[data-act="tab"][data-tab="more"]').click(); L('more drill='+!!q('[data-act="drill"]'));
   q('[data-act="drill"]').click(); const r=runSteps(200,'drill'); L('drill '+r.end+' steps='+r.steps); if(r.end==='done') q('[data-act="home"]').click();
+  // Willkommen zurück nach Pause
+  window.__app.store.update(s=>{ s.days={'2026-09-01':{xp:30,vi:30}}; }); q('[data-act="tab"][data-tab="home"]').click();
+  L('welcome button='+!!q('[data-act="start-welcome"]'));
+  runSession('[data-act="start-welcome"]', 'welcome');
+  window.__app.store.update(s=>{ s.days['2026-09-20']={xp:60,vi:60}; });
   q('[data-act="tab"][data-tab="home"]').click();
   const st=state(); L('state='+JSON.stringify({v:st.v,lessons:Object.keys(st.langs.vi.lessons),days:st.days,items:Object.keys(st.langs.vi.items).length,sessions:st.langs.vi.sessions.length,pending:!!st.pending}));
 } catch(e){ L('EXCEPTION '+e.message+' '+(e.stack||'').split('\n').slice(0,2).join(' | ')); }

@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { setSeed, norm, todayStr, addDays } from '../src/core/text.js';
 import { PROFILES } from '../src/lang/registry.js';
 import { registry } from '../src/exercises/index.js';
-import { buildForLesson, buildReviewSession, buildDrill, makeCtx } from '../src/core/builders.js';
+import { buildForLesson, buildReviewSession, buildDrill, buildWelcomeBack, makeCtx } from '../src/core/builders.js';
+import { reconcileLessons } from '../src/core/progress.js';
 import { createSession, current, record, advance, finish, abandon, snapshot, restore, progressPct } from '../src/core/session.js';
 import { defaultState, emptyLang } from '../src/core/migrations.js';
 import { gradeItem } from '../src/core/srs.js';
@@ -26,6 +27,13 @@ function checkContract(ex, lessonId) {
     assert.ok(ex.tiles.length > ex.target.length, 'keine Extra-Kacheln ' + ex.itemId);
   } else if (ex.type === 'script_listen') {
     assert.ok(ex.options.length >= 2 && ex.answer < ex.options.length && ex.speak === ex.options[ex.answer]);
+  } else if (ex.type === 'match') {
+    assert.ok(ex.itemIds.length >= 3 && ex.left.length === ex.itemIds.length && ex.right.length === ex.itemIds.length);
+    assert.deepEqual(ex.left.map(o => o.id).sort(), ex.itemIds.slice().sort());
+  } else if (ex.type === 'cloze') {
+    assert.ok(ex.seg.length >= 3 && ex.gap > 0 && ex.gap < ex.seg.length, 'Lücke ' + ex.itemId);
+    assert.equal(ex.options.length, 3); assert.equal(new Set(ex.options.map(norm)).size, 3, 'Lücken-Optionen ' + ex.itemId);
+    assert.equal(ex.options[ex.answer], ex.seg[ex.gap]);
   }
   assert.deepEqual(JSON.parse(JSON.stringify(ex)), ex, 'nicht serialisierbar ' + ex.type);
 }
@@ -40,6 +48,10 @@ test('jede Lektion ergibt eine gültige Session (neu und wiederholt)', () => {
       if (e.lesson.type !== 'script') {
         const intros = s.exercises.filter(x => x.type === 'intro').length;
         assert.equal(intros, repeat ? 0 : e.lesson.items.length, 'Intro-Anzahl ' + e.lesson.id);
+        if (!repeat && e.lesson.tip) assert.equal(s.exercises[0].type, 'tip', 'Tipp zuerst ' + e.lesson.id);
+        if (repeat) assert.ok(!s.exercises.some(x => x.type === 'tip'));
+        if (e.lesson.type === 'understand') assert.ok(s.exercises.every(x => x.type === 'intro' || x.type === 'tip' || (x.type === 'choose' && x.dir !== 'de2t') || x.type === 'match'), 'Verstehen-Lektion nur erkennen ' + e.lesson.id);
+        assert.ok(s.exercises.length <= 30, 'zu lang ' + e.lesson.id + ' ' + s.exercises.length);
       } else if (!repeat) {
         assert.equal(s.exercises.filter(x => x.type === 'script_intro').length, 6);
         assert.equal(s.exercises[0].type, 'script_overview');
@@ -59,7 +71,8 @@ test('Wiederholung: leer ohne gelernte Wörter, sonst bis 12', () => {
   assert.equal(buildReviewSession(p, ls, { today }).exercises.length, 0);
   p.allItems.slice(0, 20).forEach(it => gradeItem(ls, it.id, false, '2026-09-01'));
   const s = buildReviewSession(p, ls, { today });
-  assert.equal(s.exercises.length, 12);
+  assert.equal(s.exercises.length, 8, 'Zuordnung mit 5 plus 7 einzelne');
+  assert.equal(new Set(s.exercises.flatMap(ex => ex.itemIds || [ex.itemId])).size, 12);
   s.exercises.forEach(ex => checkContract(ex, 'review'));
 });
 test('Ton-Training', () => {
@@ -129,4 +142,46 @@ test('Auswahl-Distraktoren nie mit gleichem Zieltext', () => {
     const ex = registry.choose.make(p.items.n0, ctx, { dir: 't2de' });
     assert.ok(!ex.options.some(o => o.id === 'khong'), 'không (Nein) als Distraktor für không (0)');
   }
+});
+
+test('Tonwort-Übung wird eingestreut', () => {
+  const ls = emptyLang();
+  const s = buildForLesson(p, ls, p.lessonById('u1l1'), { toneWords: true, today });
+  assert.ok(s.exercises.some(x => x.type === 'script_listen' && x.prompt === 'Welches Wort hörst du?'));
+});
+test('Wiederholung beginnt mit Zuordnung, wenn genug fällig ist', () => {
+  const ls = emptyLang();
+  p.allItems.slice(0, 20).forEach(it => gradeItem(ls, it.id, false, '2026-09-01'));
+  const s = buildReviewSession(p, ls, { today });
+  assert.equal(s.exercises[0].type, 'match'); assert.equal(s.exercises.length, 8);
+});
+test('Willkommen zurück: klein, nur erkennen, keine Wiederholung von Fehlern', () => {
+  const state = defaultState(); const ls = emptyLang(); state.langs.vi = ls;
+  p.allItems.slice(0, 10).forEach(it => gradeItem(ls, it.id, false, '2026-08-01'));
+  const def = buildWelcomeBack(p, ls, {});
+  assert.ok(def.noRequeue); assert.equal(def.exercises[0].type, 'match'); assert.equal(def.exercises.length, 4);
+  const { s } = play(def, state, ls, () => ({ correct: false }));
+  assert.equal(s.queue.length, def.exercises.length, 'keine Requeues');
+});
+test('Zuordnung bewertet pro Wort', () => {
+  const state = defaultState(); const ls = emptyLang(); state.langs.vi = ls;
+  const items = p.allItems.slice(0, 5);
+  const def = { kind: 'review', lessonId: null, title: 'x', exercises: [registry.match.make(items, makeCtx(p, ls))], xp: 10 };
+  const s = createSession(def, 'vi');
+  record(s, current(s), { correct: true, perItem: { [items[0].id]: true, [items[1].id]: false }, noRequeue: true }, makeCtx(p, ls));
+  assert.equal(s.results[items[0].id].wrong, 1); assert.equal(s.results[items[1].id].wrong, 0); assert.ok(s.anyWrong);
+  finish(s, state, ls, today);
+  assert.equal(ls.items[items[0].id].step, 1); assert.equal(ls.items[items[1].id].step, 1);
+});
+test('Lektions-Flags werden mit neuer Datenversion abgeglichen', () => {
+  const ls = emptyLang();
+  ls.lessons = { u1l3: { done: true, count: 3 } }; // alte Flagge mit anderem Inhalt
+  ls.plugins.tones = { done: true };
+  p.itemsOf('u1l1').forEach(it => gradeItem(ls, it.id, false, today));
+  assert.ok(reconcileLessons(p, ls));
+  assert.ok(!ls.lessons.u1l3, 'alte Flagge muss weg');
+  assert.ok(ls.lessons.u1l1 && ls.lessons.u1l1.done, 'komplett gelernte Lektion gilt als erledigt');
+  assert.ok(ls.lessons.u1l0 && ls.lessons.u1l0.done, 'Ton-Lektion über Plugin');
+  assert.equal(ls.dataVersion, p.data.version);
+  assert.equal(reconcileLessons(p, ls), false, 'idempotent');
 });

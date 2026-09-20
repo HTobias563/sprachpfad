@@ -5,7 +5,7 @@ export function makeProfile(data, overrides) {
   const lessons = []; const items = {};
   data.units.forEach((u, ui) => u.lessons.forEach((l, li) => {
     lessons.push({ unit: u, lesson: l, unitIndex: ui, lessonIndex: li });
-    (l.items || []).forEach(it => { items[it.id] = Object.assign({}, it, { unitId: u.id, lessonId: l.id }); });
+    (l.items || []).forEach(it => { items[it.id] = Object.assign({}, it, { unitId: u.id, lessonId: l.id, understand: l.type === 'understand' }); });
   }));
   const p = {
     code: data.code, name: data.name, flag: data.flag, data, lessons, items, allItems: Object.values(items),

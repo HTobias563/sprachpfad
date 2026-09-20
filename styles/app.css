@@ -173,3 +173,12 @@ table.pron td:first-child{font-weight:800;width:64px;white-space:nowrap}
 .bottom.ok,.bottom.bad{animation:fade .2s ease-out}
 .banner.update{border-style:solid;border-color:var(--primary)}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+
+/* Zuordnung, Lückentext, Tipp */
+.pairs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pairs .col{display:flex;flex-direction:column;gap:10px}
+.pairs .opt{justify-content:center;text-align:center;font-size:16px;padding:12px 8px;min-height:60px}
+.cloze .gap{display:inline-block;min-width:3.2em;border-bottom:3px solid var(--primary);text-align:center;color:var(--primary)}
+.cloze .gap.filled{color:var(--ok-text);border-color:var(--ok)}
+.tipcard{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);border-left:5px solid var(--warn)}
+.tipcard .tiptext{margin-top:8px;font-size:17px;line-height:1.5}
